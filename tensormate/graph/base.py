@@ -8,10 +8,11 @@ from tensorflow.core.framework import graph_pb2
 
 class TfGgraphBuilder(object):
 
-    def __init__(self, scope=None):
+    def __init__(self, scope=None, device=None):
         self._call_count = 0
         self._scope = scope
         self._shapes = []
+        self._device = device
 
     def _build(self, *args, **kwargs):
         raise NotImplementedError("Please implement this method")
@@ -71,7 +72,8 @@ class TfGgraphBuilder(object):
         is_training = kwargs.get("is_training", True)
         reuse = self.ref_count > 0 and not is_training
         with tf.variable_scope(self.scope, reuse=reuse):
-            output = self._build(*args, **kwargs)
+            with tf.device(self._device):
+                output = self._build(*args, **kwargs)
             self._call_count += 1
         return output
 
@@ -82,6 +84,10 @@ class TfGgraphBuilder(object):
     @property
     def scope(self):
         return self._scope
+
+    @property
+    def device(self):
+        return self._device
 
     def _infer_output_shape(self, tensor):
         assert tf.is_numeric_tensor(tensor)

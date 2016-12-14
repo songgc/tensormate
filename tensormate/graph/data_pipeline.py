@@ -28,8 +28,9 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                  num_threads=2,
                  shuffle_capacity=1000,
                  use_multi_reader=True,
-                 prefetch_capacity=100):
-        super(ClassifierDataGenerator, self).__init__(scope=scope)
+                 prefetch_capacity=100,
+                 device="/cpu:0"):
+        super(ClassifierDataGenerator, self).__init__(scope=scope, device=device)
         self.dataset_params = dataset_params
         self.is_training = is_training
         self.batch_size = batch_size
