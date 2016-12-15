@@ -83,8 +83,39 @@ class BytesFeature(Feature):
 
 
 class SparseFeature(Feature):
-    def __init__(self, name, dtype):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, name, dtype, replace=None):
+        super().__init__(name=name, dtype=dtype, replace=replace)
+
+    @property
+    def parse_type(self):
+        return tf.VarLenFeature(self.dtype)
+
+
+class SparseInt64Feature(SparseFeature):
+    def __init__(self, name="SparseInt64Feature", replace=None):
+        super(SparseInt64Feature, self).__init__(name=name, dtype=tf.int64, replace=replace)
+
+    @staticmethod
+    def _encode_fun(value):
+        return Feature.int64_feature(value)
+
+
+class SparseFloat32Feature(SparseFeature):
+    def __init__(self, name="SparseFloat32Feature", replace=None):
+        super(SparseFloat32Feature, self).__init__(name=name, dtype=tf.float32, replace=replace)
+
+    @staticmethod
+    def _encode_fun(value):
+        return Feature.float_feature(value)
+
+
+class SparseBytesFeature(SparseFeature):
+    def __init__(self, name="SparseBytesFeature", replace=None):
+        super(SparseBytesFeature, self).__init__(name=name, dtype=tf.string, replace=replace)
+
+    @staticmethod
+    def _encode_fun(value):
+        return Feature.bytes_feature(value)
 
 
 class FeaturesMeta(type):
