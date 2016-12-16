@@ -6,22 +6,28 @@ from tensorflow.contrib import slim
 from tensormate.graph.base import TfGgraphBuilder
 
 
-class ImageDataSetParams(object):
+class DataSetParams(object):
 
     def __init__(self, path_pattern_train, path_pattern_validation):
         self.path_pattern_train = path_pattern_train
         self.path_pattern_validation = path_pattern_validation
         self.samples_train = None
         self.samples_validation = None
+
+
+class ImageDataSetParams(DataSetParams):
+
+    def __init__(self, *args, **kwargs):
+        super(ImageDataSetParams, self).__init__(*args, **kwargs)
         self.image_height = None
-        self.image_width = None
+        self.image_weight = None
         self.image_channels = 3
 
 
 class ClassifierDataGenerator(TfGgraphBuilder):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, scope, dataset_params: ImageDataSetParams,
+    def __init__(self, scope, dataset_params: DataSetParams,
                  is_training,
                  batch_size=64,
                  num_epochs=1,
@@ -69,16 +75,16 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                                                     shuffle=self.is_training,
                                                     capacity=max(self.num_threads, 32))
         if debug:
-            image, label = self.parse_and_decode(file_queue)
-            return self._add_extra_ops([image, label], extra_op_name_list)
+            data, label = self.parse_and_decode(file_queue)
+            return self._add_extra_ops([data, label], extra_op_name_list)
 
         if self.is_training:
             if self.use_multi_readers:
                 example_list = []
                 for _ in range(self.num_threads):
-                    image, label = self.parse_and_decode(file_queue)
-                    image, label = self.preprocess_train(image, label)
-                    op_list = self._add_extra_ops([image, label], extra_op_name_list)
+                    data, label = self.parse_and_decode(file_queue)
+                    data, label = self.preprocess_train(data, label)
+                    op_list = self._add_extra_ops([data, label], extra_op_name_list)
                     example_list.append(tuple(op_list))
                 output_tensor_list = tf.train.shuffle_batch_join(
                     example_list,
@@ -86,9 +92,9 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                     capacity=self.shuffle_capacity + 3 * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
             else:
-                image, label = self.parse_and_decode(file_queue)
-                image, label = self.preprocess_train(image, label)
-                op_list = self._add_extra_ops([image, label], extra_op_name_list)
+                data, label = self.parse_and_decode(file_queue)
+                data, label = self.preprocess_train(data, label)
+                op_list = self._add_extra_ops([data, label], extra_op_name_list)
                 output_tensor_list = tf.train.shuffle_batch(
                     op_list,
                     batch_size=self.batch_size,
@@ -96,9 +102,9 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                     capacity=self.shuffle_capacity + 3 * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
         else:
-            image, label = self.parse_and_decode(file_queue)
-            image, label = self.preprocess_test(image, label)
-            op_list = self._add_extra_ops([image, label], extra_op_name_list)
+            data, label = self.parse_and_decode(file_queue)
+            data, label = self.preprocess_test(data, label)
+            op_list = self._add_extra_ops([data, label], extra_op_name_list)
             output_tensor_list = tf.train.batch(
                 op_list,
                 batch_size=self.batch_size,
@@ -118,9 +124,9 @@ class ClassifierDataGenerator(TfGgraphBuilder):
         pass
 
     @abc.abstractmethod
-    def preprocess_test(self, image, label):
+    def preprocess_test(self, data, label):
         pass
 
     @abc.abstractmethod
-    def preprocess_train(self, image, label):
+    def preprocess_train(self, data, label):
         pass
