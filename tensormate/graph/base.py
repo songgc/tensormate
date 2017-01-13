@@ -13,6 +13,8 @@ class TfGgraphBuilder(object):
         self._scope = scope
         self._shapes = []
         self._device = device
+        self._trainable_variables = None
+        self._update_ops = None
 
     def _build(self, *args, **kwargs):
         raise NotImplementedError("Please implement this method")
@@ -75,6 +77,9 @@ class TfGgraphBuilder(object):
             with tf.device(self._device):
                 output = self._build(*args, **kwargs)
             self._call_count += 1
+        if self._call_count == 1:
+            self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+            self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
         return output
 
     @property
@@ -101,12 +106,12 @@ class TfGgraphBuilder(object):
     def get_trainable_variables(self):
         if self.ref_count == 0:
             raise RuntimeError("Not built yet")
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.scope)
+        return self._trainable_variables
 
     def get_update_ops(self):
         if self.ref_count == 0:
             raise RuntimeError("Not built yet")
-        return tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=self.scope)
+        return self._update_ops
 
     def get_model_info(self):
         objs = self.get_trainable_variables()
