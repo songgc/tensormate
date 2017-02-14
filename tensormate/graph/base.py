@@ -1,4 +1,5 @@
 import copy
+from collections import Counter
 
 import numpy as np
 import six
@@ -146,6 +147,11 @@ class TfGgraphBuilder(object):
         for obj in objs:
             output.append(obj.name)
         return output
+
+    def op_counting(self):
+        op_list = [node.op for node in self._created_nodes]
+        counter = Counter(op_list)
+        return counter.most_common(len(op_list))
 
     def count_on_conditions(self, strs):
         pass
