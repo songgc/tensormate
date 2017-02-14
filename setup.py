@@ -8,5 +8,5 @@ setup(
     license='Apache 2.0',
     author='Guocong Song',
     author_email='songgc@ieee.org',
-    description='Utility tools for tensorflow '
+    description='Utility tools for Tensorflow '
 )
