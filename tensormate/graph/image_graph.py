@@ -11,6 +11,7 @@ class ImageGraphBuilder(TfGgraphBuilder):
                  data_format_ops=(layers.conv2d,
                                   layers.convolution2d,
                                   layers.convolution2d_transpose,
+                                  layers.max_pool2d,
                                   layers.batch_norm)):
         super(ImageGraphBuilder, self).__init__(scope=scope, device=device)
         self.data_format = data_format
