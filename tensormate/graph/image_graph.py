@@ -7,7 +7,11 @@ from tensormate.graph import TfGgraphBuilder
 
 class ImageGraphBuilder(TfGgraphBuilder):
 
-    def __init__(self, scope=None, device=None, data_format="NHWC", data_format_ops=(layers.conv2d, layers.batch_norm)):
+    def __init__(self, scope=None, device=None, data_format="NHWC",
+                 data_format_ops=(layers.conv2d,
+                                  layers.convolution2d,
+                                  layers.convolution2d_transpose,
+                                  layers.batch_norm)):
         super(ImageGraphBuilder, self).__init__(scope=scope, device=device)
         self.data_format = data_format
         self.data_format_ops = data_format_ops if data_format_ops is not None else []
