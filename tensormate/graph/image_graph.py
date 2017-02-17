@@ -20,7 +20,7 @@ class ImageGraphBuilder(TfGgraphBuilder):
         is_training = kwargs.get("is_training", True)
         reuse = self.ref_count > 0 and not is_training
         g = tf.get_default_graph().as_graph_def()
-        existing_nodes = [node for node in g.node]
+        existing_nodes = set([node.name for node in g.node])
         with tf.variable_scope(self.scope, reuse=reuse):
             with tf.device(self._device), \
                  arg_scope(self.data_format_ops, data_format=self.data_format):
@@ -30,5 +30,5 @@ class ImageGraphBuilder(TfGgraphBuilder):
             self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
             self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
         g = tf.get_default_graph().as_graph_def()
-        self._created_nodes = [node for node in g.node if node not in existing_nodes]
+        self._created_nodes = [node for node in g.node if node.name not in existing_nodes]
         return output
