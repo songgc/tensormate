@@ -113,6 +113,7 @@ class ClassifierDataGenerator(TfGgraphBuilder):
             )
         # another layer for prefetch
         if self.prefetch_capacity is not None and self.prefetch_capacity > 0:
+            output_tensor_list = self.batch_preprocess(*output_tensor_list)
             batch_queue = slim.prefetch_queue.prefetch_queue(
                 output_tensor_list,
                 capacity=self.prefetch_capacity)
@@ -129,4 +130,8 @@ class ClassifierDataGenerator(TfGgraphBuilder):
 
     @abc.abstractmethod
     def preprocess_train(self, data, label):
+        pass
+
+    @abc.abstractmethod
+    def batch_preprocess(self, *tensor_list):
         pass
