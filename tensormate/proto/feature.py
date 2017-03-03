@@ -34,13 +34,13 @@ class Feature(object):
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         raise NotImplementedError
 
     def __call__(self, value=None):
         if value is None:
             value = self.default
-        return self.name, self._encode_fun(value)
+        return self.name, self._encode(value)
 
     @property
     def parse_type(self):
@@ -60,7 +60,7 @@ class Int64Feature(Feature):
         super().__init__(name=name, dtype=tf.int64, shape=shape, default=default, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.int64_feature(value)
 
 
@@ -69,7 +69,7 @@ class Float32Feature(Feature):
         super().__init__(name=name, dtype=tf.float32, shape=shape, default=default, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.float_feature(value)
 
 
@@ -78,7 +78,7 @@ class BytesFeature(Feature):
         super().__init__(name=name, dtype=tf.string, shape=shape, default=default, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.bytes_feature(value)
 
 
@@ -96,7 +96,7 @@ class SparseInt64Feature(SparseFeature):
         super(SparseInt64Feature, self).__init__(name=name, dtype=tf.int64, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.int64_feature(value)
 
 
@@ -105,7 +105,7 @@ class SparseFloat32Feature(SparseFeature):
         super(SparseFloat32Feature, self).__init__(name=name, dtype=tf.float32, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.float_feature(value)
 
 
@@ -114,7 +114,7 @@ class SparseBytesFeature(SparseFeature):
         super(SparseBytesFeature, self).__init__(name=name, dtype=tf.string, replace=replace)
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         return Feature.bytes_feature(value)
 
 
@@ -158,13 +158,13 @@ class FeatureList(object):
         return fl
 
     @staticmethod
-    def _encode_fun(value):
+    def _encode(value):
         raise NotImplementedError
 
     def __call__(self, value=None):
         if value is None:
             value = self.default
-        return self.name, self._encode_fun(value)
+        return self.name, self._encode(value)
 
     @property
     def parse_type(self):
@@ -184,7 +184,7 @@ class Int64FeatureList(FeatureList):
         super().__init__(name=name, dtype=tf.int64, shape=shape, allow_missing=allow_missing, replace=replace)
 
     @staticmethod
-    def _encode_fun(values):
+    def _encode(values):
         return FeatureList.int64_feature(values)
 
 
@@ -193,7 +193,7 @@ class Float32FeatureList(FeatureList):
         super().__init__(name=name, dtype=tf.float32, shape=shape, allow_missing=allow_missing, replace=replace)
 
     @staticmethod
-    def _encode_fun(values):
+    def _encode(values):
         return FeatureList.float_feature(values)
 
 
@@ -202,7 +202,7 @@ class BytesFeatureList(FeatureList):
         super().__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing, replace=replace)
 
     @staticmethod
-    def _encode_fun(values):
+    def _encode(values):
         return FeatureList.bytes_feature(values)
 
 
