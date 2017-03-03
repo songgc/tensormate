@@ -261,9 +261,9 @@ class Float32FeatureList(FeatureList):
 
 
 class BytesFeatureList(FeatureList):
-    def __init__(self, name="BytesFeature", shape=[], allow_missing=True, replace=None):
+    def __init__(self, name="BytesFeatureList", shape=[], allow_missing=True, replace=None):
         super().__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing, replace=replace)
 
     @staticmethod
     def _encode_fun(values):
-        return Feature.bytes_feature(values)
+        return FeatureList.bytes_feature(values)
