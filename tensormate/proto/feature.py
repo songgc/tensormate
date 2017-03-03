@@ -173,3 +173,97 @@ class Features(metaclass=FeaturesMeta):
     @classmethod
     def to_pb_features(cls, feature_tuples):
         return tf.train.Features(feature=dict(feature_tuples))
+
+
+class FeatureList(object):
+
+    def __init__(self, name, dtype, shape=[], allow_missing=True, replace=None):
+        self._name = name
+        self.dtype = dtype
+        self.shape = shape
+        self.allow_missing = allow_missing
+        # self.default = default
+        self.replace = replace
+
+    @staticmethod
+    def int64_feature(values):
+        """Wrapper for inserting int64 features into."""
+        if not isinstance(values, list):
+            raise ""
+        fl = tf.train.FeatureList()
+        for value in values:
+            field = fl.feature.add()
+            field.int64_list.value.append(value)
+        return fl
+
+    @staticmethod
+    def float_feature(values):
+        """Wrapper for inserting float features into"""
+        if not isinstance(values, list):
+            raise ""
+        fl = tf.train.FeatureList()
+        for value in values:
+            field = fl.feature.add()
+            field.float_list.value.append(value)
+        return fl
+
+    @staticmethod
+    def bytes_feature(values):
+        """Wrapper for inserting bytes features into"""
+        if not isinstance(values, list):
+            raise ""
+        fl = tf.train.FeatureList()
+        for value in values:
+            field = fl.feature.add()
+            if isinstance(value, str):
+                value = str.encode(value)
+            field.bytes_list.value.append(value)
+        return fl
+
+    @staticmethod
+    def _encode_fun(value):
+        raise NotImplementedError
+
+    def __call__(self, value=None):
+        if value is None:
+            value = self.default
+        return self.name, self._encode_fun(value)
+
+    @property
+    def parse_type(self):
+        return tf.FixedLenSequenceFeature(self.shape, self.dtype, self.allow_missing)
+
+    @property
+    def name(self):
+        name_str = self._name
+        if isinstance(self.replace, dict):
+            for k, v in self.replace.items():
+                name_str = name_str.replace(k, v)
+        return name_str
+
+
+class Int64FeatureList(FeatureList):
+    def __init__(self, name="Int64FeatureList", shape=[], allow_missing=True, replace=None):
+        super().__init__(name=name, dtype=tf.int64, shape=shape, allow_missing=allow_missing, replace=replace)
+
+    @staticmethod
+    def _encode_fun(values):
+        return FeatureList.int64_feature(values)
+
+
+class Float32FeatureList(FeatureList):
+    def __init__(self, name="Float32FeatureList", shape=[], allow_missing=True, replace=None):
+        super().__init__(name=name, dtype=tf.float32, shape=shape, allow_missing=allow_missing, replace=replace)
+
+    @staticmethod
+    def _encode_fun(values):
+        return FeatureList.float_feature(values)
+
+
+class BytesFeatureList(FeatureList):
+    def __init__(self, name="BytesFeature", shape=[], allow_missing=True, replace=None):
+        super().__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing, replace=replace)
+
+    @staticmethod
+    def _encode_fun(values):
+        return Feature.bytes_feature(values)
