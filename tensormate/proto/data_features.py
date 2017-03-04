@@ -1,29 +1,29 @@
-from tensormate.proto import feature
+from tensormate.proto import features
 
 
-class ImageProperties(feature.Features):
-    image_format = feature.BytesFeature(replace={"_": "/"})
-    image_filename = feature.BytesFeature(replace={"_": "/"})
-    image_height = feature.Int64Feature(replace={"_": "/"})
-    image_width = feature.Int64Feature(replace={"_": "/"})
-    image_channels = feature.Int64Feature(replace={"_": "/"}, default=3)
+class ImageProperties(features.Features):
+    image_format = features.BytesFeature(replace={"_": "/"})
+    image_filename = features.BytesFeature(replace={"_": "/"})
+    image_height = features.Int64Feature(replace={"_": "/"})
+    image_width = features.Int64Feature(replace={"_": "/"})
+    image_channels = features.Int64Feature(replace={"_": "/"}, default=3)
 
 
-class EncodedImage(feature.Features):
-    image_encoded = feature.BytesFeature(replace={"_": "/"})
+class EncodedImage(features.Features):
+    image_encoded = features.BytesFeature(replace={"_": "/"})
 
 
-class ImageClass(feature.Features):
-    image_class_label = feature.Int64Feature(replace={"_": "/"})
-    image_class_text = feature.BytesFeature(replace={"_": "/"})
+class ImageClass(features.Features):
+    image_class_label = features.Int64Feature(replace={"_": "/"})
+    image_class_text = features.BytesFeature(replace={"_": "/"})
 
 
-class BoundingBoxes(feature.Features):
-    image_object_bbox_xmin = feature.SparseFloat32Feature(replace={"_": "/"})
-    image_object_bbox_xmax = feature.SparseFloat32Feature(replace={"_": "/"})
-    image_object_bbox_ymin = feature.SparseFloat32Feature(replace={"_": "/"})
-    image_object_bbox_ymax = feature.SparseFloat32Feature(replace={"_": "/"})
-    image_object_bbox_label = feature.SparseInt64Feature(replace={"_": "/"})
+class BoundingBoxes(features.Features):
+    image_object_bbox_xmin = features.SparseFloat32Feature(replace={"_": "/"})
+    image_object_bbox_xmax = features.SparseFloat32Feature(replace={"_": "/"})
+    image_object_bbox_ymin = features.SparseFloat32Feature(replace={"_": "/"})
+    image_object_bbox_ymax = features.SparseFloat32Feature(replace={"_": "/"})
+    image_object_bbox_label = features.SparseInt64Feature(replace={"_": "/"})
     # image_object_bbox_encode = feature.BytesFeature(replace={"_": "/"})
 
 
@@ -31,5 +31,5 @@ class EncodedImageFeatures(EncodedImage, ImageProperties):
     pass
 
 
-class LabelFeatures(feature.Features):
-    label_index = feature.Int64Feature(replace={"_": "/"})
+class LabelFeatures(features.Features):
+    label_index = features.Int64Feature(replace={"_": "/"})
