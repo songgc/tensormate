@@ -162,8 +162,8 @@ class FeatureList(object):
         raise NotImplementedError
 
     def __call__(self, value=None):
-        if value is None:
-            value = self.default
+        # if value is None:
+        #     value = self.default
         return self.name, self._encode(value)
 
     @property
