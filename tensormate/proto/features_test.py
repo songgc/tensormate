@@ -3,6 +3,12 @@ import tensorflow as tf
 from tensormate.proto import features
 
 
+def _run_tf_session(fetches):
+    with tf.train.SingularMonitoredSession() as sess:
+        out = sess.run(fetches)
+    return out
+
+
 class TestFeatures(features.Features):
     feature_a = features.Int64Feature(replace={"_": "/"})
     feature_b = features.Float32Feature()
@@ -26,11 +32,10 @@ class FeaturesTest(unittest.TestCase):
         ]
         example = TestFeatures.to_pb_example(feature_tuples)
         parsed = tf.parse_single_example(serialized=example.SerializeToString(), features=TestFeatures.feature_map())
-        values = tf.contrib.learn.run_n(parsed, n=1)
-        value = values[0]
-        self.assertEqual(value[TestFeatures.feature_a.name], value_a)
-        self.assertEqual(value[TestFeatures.feature_b.name], value_b)
-        self.assertEqual(value[TestFeatures.feature_c.name], value_c)
+        values = _run_tf_session(parsed)
+        self.assertEqual(values[TestFeatures.feature_a.name], value_a)
+        self.assertEqual(values[TestFeatures.feature_b.name], value_b)
+        self.assertEqual(values[TestFeatures.feature_c.name], value_c)
 
     def test_example_use_old_way(self):
         value_a = 1
@@ -49,11 +54,10 @@ class FeaturesTest(unittest.TestCase):
             "feature/c": tf.FixedLenFeature(shape=[], dtype=tf.string, default_value=""),
         }
         parsed = tf.parse_single_example(serialized=example.SerializeToString(), features=feature_map)
-        values = tf.contrib.learn.run_n(parsed, n=1)
-        value = values[0]
-        self.assertEqual(value["feature/a"], value_a)
-        self.assertEqual(value["feature_b"], value_b)
-        self.assertEqual(value["feature/c"], value_c)
+        values = _run_tf_session(parsed)
+        self.assertEqual(values["feature/a"], value_a)
+        self.assertEqual(values["feature_b"], value_b)
+        self.assertEqual(values["feature/c"], value_c)
 
 
 if __name__ == '__main__':
