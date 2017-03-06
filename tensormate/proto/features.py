@@ -1,10 +1,10 @@
 from collections import OrderedDict
 
+import six
 import tensorflow as tf
 
 
 class Feature(object):
-
     def __init__(self, name, dtype, shape=[], default=None, replace=None):
         self._name = name
         self.dtype = dtype
@@ -57,7 +57,7 @@ class Feature(object):
 
 class Int64Feature(Feature):
     def __init__(self, name="Int64Feature", shape=[], default=-1, replace=None):
-        super().__init__(name=name, dtype=tf.int64, shape=shape, default=default, replace=replace)
+        super(Int64Feature, self).__init__(name=name, dtype=tf.int64, shape=shape, default=default, replace=replace)
 
     @staticmethod
     def _encode(value):
@@ -66,7 +66,7 @@ class Int64Feature(Feature):
 
 class Float32Feature(Feature):
     def __init__(self, name="Float32Feature", shape=[], default=-1, replace=None):
-        super().__init__(name=name, dtype=tf.float32, shape=shape, default=default, replace=replace)
+        super(Float32Feature, self).__init__(name=name, dtype=tf.float32, shape=shape, default=default, replace=replace)
 
     @staticmethod
     def _encode(value):
@@ -75,7 +75,7 @@ class Float32Feature(Feature):
 
 class BytesFeature(Feature):
     def __init__(self, name="BytesFeature", shape=[], default="", replace=None):
-        super().__init__(name=name, dtype=tf.string, shape=shape, default=default, replace=replace)
+        super(BytesFeature, self).__init__(name=name, dtype=tf.string, shape=shape, default=default, replace=replace)
 
     @staticmethod
     def _encode(value):
@@ -84,7 +84,7 @@ class BytesFeature(Feature):
 
 class SparseFeature(Feature):
     def __init__(self, name, dtype, replace=None):
-        super().__init__(name=name, dtype=dtype, replace=replace)
+        super(SparseFeature, self).__init__(name=name, dtype=dtype, replace=replace)
 
     @property
     def parse_type(self):
@@ -119,7 +119,6 @@ class SparseBytesFeature(SparseFeature):
 
 
 class FeatureList(object):
-
     def __init__(self, name, dtype, shape=[], allow_missing=True, replace=None):
         self._name = name
         self.dtype = dtype
@@ -181,7 +180,8 @@ class FeatureList(object):
 
 class Int64FeatureList(FeatureList):
     def __init__(self, name="Int64FeatureList", shape=[], allow_missing=True, replace=None):
-        super().__init__(name=name, dtype=tf.int64, shape=shape, allow_missing=allow_missing, replace=replace)
+        super(Int64FeatureList, self).__init__(name=name, dtype=tf.int64, shape=shape, allow_missing=allow_missing,
+                                               replace=replace)
 
     @staticmethod
     def _encode(values):
@@ -190,7 +190,8 @@ class Int64FeatureList(FeatureList):
 
 class Float32FeatureList(FeatureList):
     def __init__(self, name="Float32FeatureList", shape=[], allow_missing=True, replace=None):
-        super().__init__(name=name, dtype=tf.float32, shape=shape, allow_missing=allow_missing, replace=replace)
+        super(Float32FeatureList, self).__init__(name=name, dtype=tf.float32, shape=shape, allow_missing=allow_missing,
+                                                 replace=replace)
 
     @staticmethod
     def _encode(values):
@@ -199,7 +200,8 @@ class Float32FeatureList(FeatureList):
 
 class BytesFeatureList(FeatureList):
     def __init__(self, name="BytesFeatureList", shape=[], allow_missing=True, replace=None):
-        super().__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing, replace=replace)
+        super(BytesFeatureList, self).__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing,
+                                               replace=replace)
 
     @staticmethod
     def _encode(values):
@@ -232,7 +234,7 @@ class FeaturesMeta(type):
         return OrderedDict()
 
 
-class Features(metaclass=FeaturesMeta):
+class Features(six.with_metaclass(FeaturesMeta)):
     @classmethod
     def all_feature_names(cls):
         return list(cls.__dict__.get(cls.ORDER))
@@ -269,7 +271,7 @@ class Features(metaclass=FeaturesMeta):
         return tf.train.Example(features=features)
 
 
-class SequenceFeatures(metaclass=FeaturesMeta):
+class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
     @classmethod
     def all_feature_names(cls):
         return list(cls.__dict__.get(cls.ORDER))
