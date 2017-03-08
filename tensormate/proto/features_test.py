@@ -86,13 +86,10 @@ class SequenceFeaturesTest(unittest.TestCase):
         # encode
         feature_tuples = [
             TestSequenceFeatures.length(len(self.tokens)),
-        ]
-        feature_list_tuples = [
             TestSequenceFeatures.tokens(self.tokens),
             TestSequenceFeatures.labels(self.labels),
         ]
-        seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples,
-                                                             feature_list_tuples=feature_list_tuples)
+        seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples)
         # decode
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=seq_ex.SerializeToString(),

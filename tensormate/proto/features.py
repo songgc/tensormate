@@ -313,10 +313,17 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
         return tf.train.FeatureLists(feature_list=dict(feature_list_tuples))
 
     @classmethod
-    def to_pb_sequence_example(cls, feature_tuples=None, feature_list_tuples=None):
+    def to_pb_sequence_example(cls, feature_tuples):
         kwargs = dict()
-        if feature_tuples is not None:
-            kwargs["context"] = cls.to_pb_features(feature_tuples)
-        if feature_list_tuples is not None:
-            kwargs["feature_lists"] = cls.to_pb_feature_lists(feature_list_tuples)
+        context = list()
+        feature_lists = list()
+        for name, value in feature_tuples:
+            if isinstance(cls.__dict__.get(name), Feature):
+                context.append((name, value))
+            else:
+                feature_lists.append((name, value))
+        if context:
+            kwargs["context"] = cls.to_pb_features(context)
+        if feature_lists:
+            kwargs["feature_lists"] = cls.to_pb_feature_lists(feature_lists)
         return tf.train.SequenceExample(**kwargs)
