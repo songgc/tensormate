@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 import tensorflow as tf
 from tensormate.proto import features
 
@@ -74,6 +75,8 @@ class TestSequenceFeatures(features.SequenceFeatures):
     length = features.Int64Feature()
     tokens = features.Int64FeatureList()
     labels = features.Int64FeatureList()
+    bytes = features.BytesFeatureList()
+    floats = features.Float32FeatureList()
 
 
 class SequenceFeaturesTest(unittest.TestCase):
@@ -81,6 +84,8 @@ class SequenceFeaturesTest(unittest.TestCase):
     def setUp(self):
         self.tokens = [1, 2, 3]
         self.labels = [0, 1, 0]
+        self.floats = [0.1, 0.2]
+        self.bytes = [b"ab", b"c"]
 
     def test_sequence_example(self):
         # encode
@@ -88,6 +93,8 @@ class SequenceFeaturesTest(unittest.TestCase):
             TestSequenceFeatures.length(len(self.tokens)),
             TestSequenceFeatures.tokens(self.tokens),
             TestSequenceFeatures.labels(self.labels),
+            TestSequenceFeatures.floats(self.floats),
+            TestSequenceFeatures.bytes(self.bytes),
         ]
         seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples)
         # decode
@@ -100,6 +107,9 @@ class SequenceFeaturesTest(unittest.TestCase):
         self.assertEqual(context[TestSequenceFeatures.length.name], len(self.tokens))
         self.assertEqual(sequence[TestSequenceFeatures.tokens.name].tolist(), self.tokens)
         self.assertEqual(sequence[TestSequenceFeatures.labels.name].tolist(), self.labels)
+        self.assertEqual(sequence[TestSequenceFeatures.bytes.name].tolist(), self.bytes)
+        np.testing.assert_almost_equal(sequence[TestSequenceFeatures.floats.name].tolist(), self.floats,
+                                       decimal=7, verbose=True)
 
     def test_sequence_example_use_old_way(self):
         # encode
@@ -108,16 +118,23 @@ class SequenceFeaturesTest(unittest.TestCase):
         seq_ex.context.feature["length"].int64_list.value.append(sequence_length)
         fl_tokens = seq_ex.feature_lists.feature_list["tokens"]
         fl_labels = seq_ex.feature_lists.feature_list["labels"]
+        fl_floats = seq_ex.feature_lists.feature_list["floats"]
+        fl_bytes = seq_ex.feature_lists.feature_list["bytes"]
         for token, label in zip(self.tokens, self.labels):
             fl_tokens.feature.add().int64_list.value.append(token)
             fl_labels.feature.add().int64_list.value.append(label)
+        for flt, byte in zip(self.floats, self.bytes):
+            fl_floats.feature.add().float_list.value.append(flt)
+            fl_bytes.feature.add().bytes_list.value.append(byte)
         # decode
         context_features = {
             "length": tf.FixedLenFeature([], dtype=tf.int64)
         }
         sequence_features = {
             "tokens": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-            "labels": tf.FixedLenSequenceFeature([], dtype=tf.int64)
+            "labels": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+            "floats": tf.FixedLenSequenceFeature([], dtype=tf.float32),
+            "bytes": tf.FixedLenSequenceFeature([], dtype=tf.string),
         }
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=seq_ex.SerializeToString(),
@@ -128,6 +145,9 @@ class SequenceFeaturesTest(unittest.TestCase):
         self.assertEqual(context["length"], len(self.tokens))
         self.assertEqual(sequence["tokens"].tolist(), self.tokens)
         self.assertEqual(sequence["labels"].tolist(), self.labels)
+        self.assertEqual(sequence[TestSequenceFeatures.bytes.name].tolist(), self.bytes)
+        np.testing.assert_almost_equal(sequence[TestSequenceFeatures.floats.name].tolist(), self.floats,
+                                       decimal=7, verbose=True)
 
 
 if __name__ == '__main__':

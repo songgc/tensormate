@@ -130,31 +130,17 @@ class FeatureList(object):
     @staticmethod
     def int64_feature(values):
         """Wrapper for inserting int64 features into."""
-        fl = tf.train.FeatureList()
-        for value in values:
-            field = fl.feature.add()
-            field.int64_list.value.append(value)
-        return fl
+        return tf.train.FeatureList(feature=[Feature.int64_feature(value) for value in values])
 
     @staticmethod
     def float_feature(values):
         """Wrapper for inserting float features into"""
-        fl = tf.train.FeatureList()
-        for value in values:
-            field = fl.feature.add()
-            field.float_list.value.append(value)
-        return fl
+        return tf.train.FeatureList(feature=[Feature.float_feature(value) for value in values])
 
     @staticmethod
     def bytes_feature(values):
         """Wrapper for inserting bytes features into"""
-        fl = tf.train.FeatureList()
-        for value in values:
-            if isinstance(value, str):
-                value = str.encode(value)
-            field = fl.feature.add()
-            field.bytes_list.value.append(value)
-        return fl
+        return tf.train.FeatureList(feature=[Feature.bytes_feature(value) for value in values])
 
     @staticmethod
     def _encode(value):
