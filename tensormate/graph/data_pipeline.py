@@ -58,7 +58,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
         assert len(self.file_list) > 0
 
     @property
-    def sample_num_per_epoch(self):
+    def batch_num_per_epoch(self):
         return self.num_samples // self.batch_size
 
     @property
