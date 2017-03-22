@@ -19,6 +19,7 @@ class TfGgraphBuilder(object):
         self._update_ops = None
         self._shapes = []
         self._created_nodes = []
+        self.tf_op_map = dict()
 
     def _build(self, *args, **kwargs):
         raise NotImplementedError("Please implement this method")

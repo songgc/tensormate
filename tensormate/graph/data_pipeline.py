@@ -56,8 +56,6 @@ class ClassifierDataGenerator(TfGgraphBuilder):
 
         self.file_list = glob.glob(path_pattern)
         assert len(self.file_list) > 0
-        # print(self.file_list)
-        self.tf_op_map = dict()
 
     @property
     def batch_num_limit(self):
