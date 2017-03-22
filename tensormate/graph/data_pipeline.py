@@ -24,7 +24,7 @@ class ImageDataSetParams(DataSetParams):
         self.image_channels = 3
 
 
-class ClassifierDataGenerator(TfGgraphBuilder):
+class SupervisedLearningDataGenerator(TfGgraphBuilder):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, scope, dataset_params: DataSetParams,
@@ -36,7 +36,7 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                  use_multi_reader=True,
                  prefetch_capacity=100,
                  device="/cpu:0"):
-        super(ClassifierDataGenerator, self).__init__(scope=scope, device=device)
+        super(SupervisedLearningDataGenerator, self).__init__(scope=scope, device=device)
         self.dataset_params = dataset_params
         self.is_training = is_training
         self.batch_size = batch_size
@@ -56,6 +56,10 @@ class ClassifierDataGenerator(TfGgraphBuilder):
 
         self.file_list = glob.glob(path_pattern)
         assert len(self.file_list) > 0
+
+    @property
+    def sample_num_per_epoch(self):
+        return self.num_samples // self.batch_size
 
     @property
     def batch_num_limit(self):
@@ -80,8 +84,10 @@ class ClassifierDataGenerator(TfGgraphBuilder):
             if self.use_multi_readers:
                 example_list = []
                 for _ in range(self.num_threads):
-                    data, label = self.parse_and_decode(file_queue)
-                    data, label = self.preprocess_train(data, label)
+                    with tf.name_scope("parse_and_decode"):
+                        data, label = self.parse_and_decode(file_queue)
+                    with tf.name_scope("preprocess_train"):
+                        data, label = self.preprocess_train(data, label)
                     op_list = self._add_extra_ops([data, label], extra_op_name_list)
                     example_list.append(tuple(op_list))
                 output_tensor_list = tf.train.shuffle_batch_join(
@@ -90,8 +96,10 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                     capacity=self.shuffle_capacity + 3 * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
             else:
-                data, label = self.parse_and_decode(file_queue)
-                data, label = self.preprocess_train(data, label)
+                with tf.name_scope("parse_and_decode"):
+                    data, label = self.parse_and_decode(file_queue)
+                with tf.name_scope("preprocess_train"):
+                    data, label = self.preprocess_train(data, label)
                 op_list = self._add_extra_ops([data, label], extra_op_name_list)
                 output_tensor_list = tf.train.shuffle_batch(
                     op_list,
@@ -100,8 +108,10 @@ class ClassifierDataGenerator(TfGgraphBuilder):
                     capacity=self.shuffle_capacity + 3 * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
         else:
-            data, label = self.parse_and_decode(file_queue)
-            data, label = self.preprocess_test(data, label)
+            with tf.name_scope("parse_and_decode"):
+                data, label = self.parse_and_decode(file_queue)
+            with tf.name_scope("preprocess_train"):
+                data, label = self.preprocess_test(data, label)
             op_list = self._add_extra_ops([data, label], extra_op_name_list)
             output_tensor_list = tf.train.batch(
                 op_list,
@@ -111,7 +121,8 @@ class ClassifierDataGenerator(TfGgraphBuilder):
             )
         # another layer for prefetch
         if self.prefetch_capacity is not None and self.prefetch_capacity > 0:
-            output_tensor_list = self.batch_preprocess(*output_tensor_list)
+            with tf.name_scope("batch_preprocess"):
+                output_tensor_list = self.batch_preprocess(*output_tensor_list)
             batch_queue = slim.prefetch_queue.prefetch_queue(
                 output_tensor_list,
                 capacity=self.prefetch_capacity)
@@ -133,3 +144,6 @@ class ClassifierDataGenerator(TfGgraphBuilder):
     @abc.abstractmethod
     def batch_preprocess(self, *tensor_list):
         pass
+
+
+ClassifierDataGenerator = SupervisedLearningDataGenerator
