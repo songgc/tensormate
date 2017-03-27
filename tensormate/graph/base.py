@@ -92,8 +92,8 @@ class TfGgraphBuilder(object):
         return strip_def
 
     def __call__(self, *args, **kwargs):
-        is_training = kwargs.get("is_training", True)
-        reuse = self.ref_count > 0 and not is_training
+        # is_training = kwargs.get("is_training", True)
+        reuse = self.ref_count > 0
         g = tf.get_default_graph().as_graph_def()
         existing_nodes = set([node.name for node in g.node])
         with tf.variable_scope(self.scope, reuse=reuse):
