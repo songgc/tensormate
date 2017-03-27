@@ -68,7 +68,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
     def _add_extra_ops(self, op_list, extra_op_name_list):
         if extra_op_name_list is not None:
             for name in extra_op_name_list:
-                op_list.append(self.tf_op_map.get(name))
+                op_list.append(self._node_map.get(name))
         return op_list
 
     def _build(self, extra_op_name_list=None, debug=False):

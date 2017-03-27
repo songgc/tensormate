@@ -19,7 +19,7 @@ class TfGgraphBuilder(object):
         self._update_ops = None
         self._shapes = []
         self._created_nodes = []
-        self.tf_op_map = dict()
+        self._node_map = dict()
 
     def _build(self, *args, **kwargs):
         raise NotImplementedError("Please implement this method")
@@ -156,6 +156,12 @@ class TfGgraphBuilder(object):
 
     def count_on_conditions(self, strs):
         pass
+
+    def add_node_to_map(self, name, node):
+        self._node_map[name] = node
+
+    def get_node_from_map(self, name):
+        return self._node_map.get(name)
 
 
 def _node_name(n):
