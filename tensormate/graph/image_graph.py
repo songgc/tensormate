@@ -11,6 +11,14 @@ class ImageGraphBuilder(TfGgraphBuilder):
                  data_format_ops=(layers.conv2d,
                                   layers.convolution2d,
                                   layers.convolution2d_transpose,
+                                  layers.convolution,
+                                  layers.convolution2d_in_plane,
+                                  layers.convolution2d_transpose,
+                                  layers.conv2d_in_plane,
+                                  layers.conv2d_transpose,
+                                  layers.separable_conv2d,
+                                  layers.separable_convolution2d,
+                                  layers.avg_pool2d,
                                   layers.max_pool2d,
                                   layers.batch_norm)):
         super(ImageGraphBuilder, self).__init__(scope=scope, device=device)
@@ -22,11 +30,15 @@ class ImageGraphBuilder(TfGgraphBuilder):
         reuse = self.ref_count > 0
         g = tf.get_default_graph().as_graph_def()
         existing_nodes = set([node.name for node in g.node])
-        with tf.variable_scope(self.scope, reuse=reuse):
-            with tf.device(self._device), \
-                 arg_scope(self.data_format_ops, data_format=self.data_format):
-                output = self._build(*args, **kwargs)
-            self._call_count += 1
+        with tf.variable_scope(tf.get_variable_scope()):
+            with tf.variable_scope(self.scope, reuse=reuse):
+                with arg_scope(self.data_format_ops, data_format=self.data_format):
+                    if self._device is None:
+                        output = self._build(*args, **kwargs)
+                    else:
+                        with tf.device(self._device):
+                            output = self._build(*args, **kwargs)
+        self._call_count += 1
         if self._call_count == 1:
             self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
             self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
