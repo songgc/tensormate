@@ -11,7 +11,6 @@ class ImageGraphBuilder(TfGgraphBuilder):
                  data_format_ops=(layers.conv2d,
                                   layers.convolution2d,
                                   layers.convolution2d_transpose,
-                                  layers.convolution,
                                   layers.convolution2d_in_plane,
                                   layers.convolution2d_transpose,
                                   layers.conv2d_in_plane,
@@ -25,23 +24,18 @@ class ImageGraphBuilder(TfGgraphBuilder):
         self.data_format = data_format
         self.data_format_ops = data_format_ops if data_format_ops is not None else []
 
-    def __call__(self, *args, **kwargs):
+    def _call_body(self, *args, **kwargs):
         # is_training = kwargs.get("is_training", True)
         reuse = self.ref_count > 0
-        g = tf.get_default_graph().as_graph_def()
-        existing_nodes = set([node.name for node in g.node])
-        with tf.variable_scope(tf.get_variable_scope()):
-            with tf.variable_scope(self.scope, reuse=reuse):
-                with arg_scope(self.data_format_ops, data_format=self.data_format):
-                    if self._device is None:
+        with tf.variable_scope(self._scope, reuse=reuse):
+            with arg_scope(self.data_format_ops, data_format=self.data_format):
+                if self._device is None:
+                    output = self._build(*args, **kwargs)
+                else:
+                    with tf.device(self._device):
                         output = self._build(*args, **kwargs)
-                    else:
-                        with tf.device(self._device):
-                            output = self._build(*args, **kwargs)
-        self._call_count += 1
-        if self._call_count == 1:
-            self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-            self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
-        g = tf.get_default_graph().as_graph_def()
-        self._created_nodes = [node for node in g.node if node.name not in existing_nodes]
+                scope_name = tf.get_variable_scope().name
+                if self.ref_count > 0:
+                    scope_name += "_" + str(self.ref_count)
+                self._actual_scopes.append(scope_name)
         return output

@@ -20,6 +20,9 @@ class TfGgraphBuilder(object):
         self._shapes = []
         self._created_nodes = []
         self._node_map = dict()
+        self._before_states = dict()
+        self._after_states = dict()
+        self._actual_scopes = []
 
     def _build(self, *args, **kwargs):
         raise NotImplementedError("Please implement this method")
@@ -36,8 +39,17 @@ class TfGgraphBuilder(object):
             for name in node.input:
                 if "/" not in name:
                     to_be_inputed.append(name)
-                elif name.split("/")[0] != self.scope:
-                    to_be_inputed.append(name)
+                else:
+                    flag = False
+                    for scope in self._actual_scopes:
+                        seq = scope.split("/")
+                        if "/".join(name.split("/")[0: len(seq)]) == scope:
+                            flag = True
+                            break
+                    if not flag:
+                        to_be_inputed.append(name)
+                # elif name.split("/")[0] != self.scope:
+                #     to_be_inputed.append(name)
         for name in to_be_inputed:
             op = tf.get_default_graph().get_operation_by_name(name)
             node = _NodeDef("Placeholder", name)
@@ -91,24 +103,46 @@ class TfGgraphBuilder(object):
                     tensor.tensor_content = str.encode("<stripped %s bytes>" % size)
         return strip_def
 
-    def __call__(self, *args, **kwargs):
-        # is_training = kwargs.get("is_training", True)
-        reuse = self.ref_count > 0
+    def _before_call(self):
         g = tf.get_default_graph().as_graph_def()
         existing_nodes = set([node.name for node in g.node])
-        with tf.variable_scope(tf.get_variable_scope()):
-            with tf.variable_scope(self.scope, reuse=reuse):
-                if self._device is None:
+        self._before_states = dict()
+        self._before_states["existing_nodes"] = existing_nodes
+        return
+
+    def _call_body(self, *args, **kwargs):
+        # is_training = kwargs.get("is_training", True)
+        reuse = self.ref_count > 0
+        with tf.variable_scope(self._scope, reuse=reuse):
+            if self._device is None:
+                output = self._build(*args, **kwargs)
+            else:
+                with tf.device(self._device):
                     output = self._build(*args, **kwargs)
-                else:
-                    with tf.device(self._device):
-                        output = self._build(*args, **kwargs)
-        self._call_count += 1
+            scope_name = tf.get_variable_scope().name
+            if self.ref_count > 0:
+                scope_name += "_" + str(self.ref_count)
+            self._actual_scopes.append(scope_name)
+        return output
+
+    def _after_call(self):
+        existing_nodes = self._before_states["existing_nodes"]
         if self._call_count == 1:
             self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
             self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
         g = tf.get_default_graph().as_graph_def()
-        self._created_nodes = [node for node in g.node if node.name not in existing_nodes]
+        self._created_nodes += [node for node in g.node if node.name not in existing_nodes]
+
+    def __call__(self, *args, **kwargs):
+
+        self._before_call()
+
+        output = self._call_body(*args, **kwargs)
+
+        self._call_count += 1
+
+        self._after_call()
+
         return output
 
     @property
@@ -166,6 +200,11 @@ class TfGgraphBuilder(object):
 
     def get_node_from_map(self, name):
         return self._node_map.get(name)
+
+    def get_last_actual_scope(self):
+        if self.ref_count == 0:
+            raise RuntimeError("Not built yet")
+        return self._actual_scopes[-1]
 
 
 def _node_name(n):
