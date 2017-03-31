@@ -119,10 +119,6 @@ class TfGgraphBuilder(object):
             else:
                 with tf.device(self._device):
                     output = self._build(*args, **kwargs)
-            scope_name = tf.get_variable_scope().name
-            if self.ref_count > 0:
-                scope_name += "_" + str(self.ref_count)
-            self._actual_scopes.append(scope_name)
         return output
 
     def _after_call(self):
@@ -131,7 +127,15 @@ class TfGgraphBuilder(object):
             self._trainable_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
             self._update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, self.scope)
         g = tf.get_default_graph().as_graph_def()
-        self._created_nodes += [node for node in g.node if node.name not in existing_nodes]
+        new_nodes = [node for node in g.node if node.name not in existing_nodes]
+        self._created_nodes += new_nodes
+        name_list = new_nodes[-1].name.split("/")
+        current_scopes = []
+        for name in name_list:
+            current_scopes.append(name)
+            if self._scope in name:
+                break
+        self._actual_scopes.append("/".join(current_scopes))
 
     def __call__(self, *args, **kwargs):
 

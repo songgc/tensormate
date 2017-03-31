@@ -34,8 +34,4 @@ class ImageGraphBuilder(TfGgraphBuilder):
                 else:
                     with tf.device(self._device):
                         output = self._build(*args, **kwargs)
-                scope_name = tf.get_variable_scope().name
-                if self.ref_count > 0:
-                    scope_name += "_" + str(self.ref_count)
-                self._actual_scopes.append(scope_name)
         return output
