@@ -11,10 +11,11 @@ from tensorflow.python.util.deprecation import deprecated
 
 class TfGgraphBuilder(object):
 
-    def __init__(self, scope=None, device=None):
+    def __init__(self, scope=None, device=None, plain=False):
         self._call_count = 0
         self._scope = scope
         self._device = device
+        self._plain = plain
         self._trainable_variables = None
         self._update_ops = None
         self._shapes = []
@@ -138,14 +139,15 @@ class TfGgraphBuilder(object):
         self._actual_scopes.append("/".join(current_scopes))
 
     def __call__(self, *args, **kwargs):
-
-        self._before_call()
+        if not self._plain:
+            self._before_call()
 
         output = self._call_body(*args, **kwargs)
 
         self._call_count += 1
 
-        self._after_call()
+        if not self._plain:
+            self._after_call()
 
         return output
 
@@ -160,6 +162,10 @@ class TfGgraphBuilder(object):
     @property
     def device(self):
         return self._device
+
+    @property
+    def plain(self):
+        return self.plain
 
     @deprecated("2017-10-31", "Use infer_output_shape(tensor)")
     def _infer_output_shape(self, tensor):
