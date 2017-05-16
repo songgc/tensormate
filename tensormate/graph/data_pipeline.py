@@ -35,6 +35,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                  shuffle_capacity=1000,
                  use_multi_reader=True,
                  prefetch_capacity=100,
+                 prefetch_threads=2,
                  device="/cpu:0"):
         super(SupervisedLearningDataGenerator, self).__init__(scope=scope, device=device)
         self.dataset_params = dataset_params
@@ -45,6 +46,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
         self.shuffle_capacity = shuffle_capacity
         self.use_multi_readers = use_multi_reader
         self.prefetch_capacity = prefetch_capacity
+        self.prefetch_threads = prefetch_threads
 
         dsparams = self.dataset_params
         if self.is_training:
@@ -125,7 +127,8 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                 output_tensor_list = self.batch_preprocess(*output_tensor_list)
             batch_queue = slim.prefetch_queue.prefetch_queue(
                 output_tensor_list,
-                capacity=self.prefetch_capacity)
+                capacity=self.prefetch_capacity,
+                num_threads=self.prefetch_threads)
             output_tensor_list = batch_queue.dequeue()
         return output_tensor_list
 
