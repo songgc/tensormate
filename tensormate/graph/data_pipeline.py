@@ -122,9 +122,9 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                 capacity=1000 + 3 * self.batch_size
             )
         # another layer for prefetch
+        with tf.name_scope("batch_preprocess"):
+            output_tensor_list = self.batch_preprocess(*output_tensor_list)
         if self.prefetch_capacity is not None and self.prefetch_capacity > 0:
-            with tf.name_scope("batch_preprocess"):
-                output_tensor_list = self.batch_preprocess(*output_tensor_list)
             batch_queue = slim.prefetch_queue.prefetch_queue(
                 output_tensor_list,
                 capacity=self.prefetch_capacity,
