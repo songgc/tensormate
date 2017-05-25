@@ -33,6 +33,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                  num_epochs=1,
                  num_threads=2,
                  shuffle_capacity=1000,
+                 extra_batchs=2,
                  use_multi_reader=True,
                  prefetch_capacity=100,
                  prefetch_threads=2,
@@ -44,6 +45,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
         self.num_threads = num_threads
         self.num_epochs = num_epochs
         self.shuffle_capacity = shuffle_capacity
+        self.extra_batchs = extra_batchs
         self.use_multi_readers = use_multi_reader
         self.prefetch_capacity = prefetch_capacity
         self.prefetch_threads = prefetch_threads
@@ -95,7 +97,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                 output_tensor_list = tf.train.shuffle_batch_join(
                     example_list,
                     batch_size=self.batch_size,
-                    capacity=self.shuffle_capacity + 6 * self.batch_size,
+                    capacity=self.shuffle_capacity + self.extra_batchs * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
             else:
                 with tf.name_scope("parse_and_decode"):
@@ -107,7 +109,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
                     op_list,
                     batch_size=self.batch_size,
                     num_threads=self.num_threads,
-                    capacity=self.shuffle_capacity + 6 * self.batch_size,
+                    capacity=self.shuffle_capacity + self.extra_batchs * self.batch_size,
                     min_after_dequeue=self.shuffle_capacity)
         else:
             with tf.name_scope("parse_and_decode"):
