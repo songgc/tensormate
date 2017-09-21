@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.contrib import layers
-from tensormate.graph import shape_info
+from tensormate.graph import shape_info, op_info
+
+tf.logging.set_verbosity(tf.logging.INFO)
 
 
 class ShapeInfoTest(tf.test.TestCase):
@@ -21,6 +23,19 @@ class ShapeInfoTest(tf.test.TestCase):
         output_expected_shape[-1] = 16
         self.assertAllEqual(self.graph.result[1][-1], output_expected_shape)
 
+
+class OpInfoTest(tf.test.TestCase):
+
+    @op_info(cached=False)
+    def graph(self, inputs, num_outputs):
+        return layers.conv2d(inputs, num_outputs=num_outputs, kernel_size=[3, 3])
+
+    def test(self):
+        input_shape = [10, 24, 24, 3]
+        inputs = tf.Variable(tf.zeros(shape=input_shape))
+        inputs = tf.identity(inputs)
+        outputs = self.graph(inputs, num_outputs=16)
+        # print(self.graph.result)
 
 if __name__ == '__main__':
     tf.test.main()
