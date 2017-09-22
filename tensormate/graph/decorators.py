@@ -1,6 +1,8 @@
 import types
 from functools import wraps
 import tensorflow as tf
+import numpy as np
+from collections import Counter
 from pprint import pprint
 
 
@@ -92,19 +94,19 @@ class _ShapeInfo(_GraphDecoratorBase):
         if self._cached:
             self._add_to_table(tensors, "inputs")
         else:
-            _ShapeInfo._log_shape(tensors, "INPUTS: ")
+            _ShapeInfo._log_shape(tensors, "INPUTS")
 
     def _after_call(self, output):
         tensors = output if isinstance(output, (tuple, list)) else [output]
         if self._cached:
             self._add_to_table(tensors, "outputs")
         else:
-            _ShapeInfo._log_shape(tensors, "OUTPUTS: ")
+            _ShapeInfo._log_shape(tensors, "OUTPUTS")
 
     @staticmethod
     def _log_shape(tensors, prefix):
         for tensor in tensors:
-            msg = prefix + tensor.name + ": " + str(tensor.get_shape().as_list())
+            msg = "{:8}{:<45}{}".format(prefix, tensor.name, str(tensor.get_shape().as_list()))
             tf.logging.info(msg)
 
     def _add_to_table(self, tensors, prefix):
@@ -123,7 +125,15 @@ class _OpInfo(_GraphDecoratorBase):
     def __init__(self, func, cached):
         super(_OpInfo, self).__init__(func)
         self._cached = cached
+        self._result = []
         self._input_tensors = None
+
+    @property
+    def result(self):
+        return self._result
+
+    def clear(self):
+        self._result.clear()
 
     def _before_call(self, *args, **kwargs):
         self._input_tensors = _find_input_tensors(args, kwargs)
@@ -135,17 +145,41 @@ class _OpInfo(_GraphDecoratorBase):
 
         graph = tf.get_default_graph()
         subgraph = SubGraph(name_scope=tf.contrib.framework.get_name_scope(), graph=graph)
-        pprint(input_node_names)
         subgraph_nodes = subgraph.extract_subgraph_nodes(dest_node_names)
         before_input_nodes = subgraph.extract_subgraph_nodes(input_node_names)
         subgraph_nodes = [node for node in subgraph_nodes if node not in before_input_nodes or node in input_node_names]
 
         if self._cached:
-            pass
-        else:
             for node in subgraph_nodes:
-                tf.logging.info(node + " " + str(_OpInfo.get_output_shapes_by_node_name(node))
-                                + " from " + str(subgraph.edges(node)))
+                shapes = _OpInfo.get_output_shapes_by_node_name(node)
+                op = subgraph.node_by_name(node).op
+                inputs = subgraph.edges(node)
+                self._result.append((node, op, shapes, inputs))
+        else:
+            tf.logging.info("------Subgraph------")
+            vars = []
+            ops = []
+            for node in subgraph_nodes:
+                shapes = _OpInfo.get_output_shapes_by_node_name(node)
+                op = subgraph.node_by_name(node).op
+                inputs = subgraph.edges(node)
+                if "Variable" in op:
+                    num_params = np.prod(shapes)
+                    vars.append((node, str(shapes), num_params))
+                ops.append(op)
+                fmt = " {:<40}{:15}{:<22}{}"
+                msg = fmt.format(node, op, str(shapes), str(inputs))
+                tf.logging.info(msg)
+            tf.logging.info("------Variables------")
+            fmt = " {:<40}{:<22}{}"
+            for t in vars:
+                tf.logging.info(fmt.format(*t))
+            tf.logging.info("------Ops------")
+            fmt = " {:<40}{}"
+            counter = Counter(ops)
+            for t in counter.most_common(len(ops)):
+                tf.logging.info(fmt.format(*t))
+            tf.logging.info("------end------")
 
     @staticmethod
     def get_output_shapes_by_node_name(node_name, graph=None):
