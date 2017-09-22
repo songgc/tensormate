@@ -3,6 +3,10 @@ from functools import wraps
 import tensorflow as tf
 import numpy as np
 from collections import Counter
+from tensorflow.core.framework import graph_pb2, node_def_pb2
+from tensorflow.python.util import compat
+import six
+import copy
 from pprint import pprint
 
 
@@ -181,6 +185,9 @@ class _GraphInfo(_GraphDecoratorBase):
                 tf.logging.info(fmt.format(*t))
             tf.logging.info("------end------")
 
+        g = subgraph.new_graph(subgraph_nodes, input_node_names)
+        subgraph.visualize(g, output_file="/home/guocong/git/github/tensormate/test1.html")
+
     @staticmethod
     def get_output_shapes_by_node_name(node_name, graph=None):
         graph = tf.get_default_graph() if graph is None else graph
@@ -218,7 +225,7 @@ class SubGraph(object):
 
     @property
     def name_scope(self):
-        return self._name_scape
+        return self._name_scope
 
     @property
     def graph(self):
@@ -248,3 +255,106 @@ class SubGraph(object):
 
         nodes_to_keep_list = sorted(list(nodes_to_keep), key=lambda n: self.seq_by_name(n))
         return nodes_to_keep_list
+
+    def new_graph(self, node_names, input_names):
+        out_graph = graph_pb2.GraphDef()
+        # to_be_inputed = []
+        for node_name in node_names:
+            if node_name in input_names:
+                continue
+            node = self.node_by_name(node_name)
+            out_graph.node.extend([copy.deepcopy(node)])
+            op = tf.get_default_graph().get_operation_by_name(node.name)
+            if op.outputs:
+                out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
+                    output.get_shape().as_proto() for output in op.outputs])
+            # for name in node.input:
+            #     if "/" not in name:
+            #         to_be_inputed.append(name)
+            #     else:
+            #         flag = False
+            #         for scope in self._name_scope:
+            #             seq = scope.split("/")
+            #             if "/".join(name.split("/")[0: len(seq)]) == scope:
+            #                 flag = True
+            #                 break
+            #         if not flag:
+            #             to_be_inputed.append(name)
+                # elif name.split("/")[0] != self.scope:
+                #     to_be_inputed.append(name)
+        for name in input_names:
+            op = tf.get_default_graph().get_operation_by_name(name)
+            node = _NodeDef("Placeholder", name)
+            out_graph.node.extend([node])
+            if op.outputs:
+                out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
+                    output.get_shape().as_proto() for output in op.outputs])
+        return out_graph
+
+    @staticmethod
+    def visualize(graph_def, output_file=None):
+        """Visualize TensorFlow graph."""
+        strip_def = SubGraph.strip_consts(graph_def, max_const_size=32)
+        code = """
+            <script>
+              function load() {{
+                document.getElementById("{id}").pbtxt = {data};
+              }}
+            </script>
+            <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
+            <div style="height:600px">
+              <tf-graph-basic id="{id}"></tf-graph-basic>
+            </div>
+        """.format(data=repr(str(strip_def)), id='graph' + str(np.random.rand()))
+
+        iframe = """
+            <iframe seamless style="width:1200px;height:620px;border:0" srcdoc="{}"></iframe>
+        """.format(code.replace('"', '&quot;'))
+        if output_file is None:
+            return iframe
+        with open(output_file, "tw") as f:
+            f.write(iframe)
+
+    @staticmethod
+    def strip_consts(graph_def, max_const_size=32):
+        """Strip large constant values from graph_def."""
+        strip_def = tf.GraphDef()
+        for n0 in graph_def.node:
+            n = strip_def.node.add()
+            n.MergeFrom(n0)
+            if n.op == 'Const':
+                tensor = n.attr['value'].tensor
+                size = len(tensor.tensor_content)
+                if size > max_const_size:
+                    tensor.tensor_content = str.encode("<stripped %s bytes>" % size)
+        return strip_def
+
+
+def _NodeDef(op_type, name, device=None, attrs=None):
+    """Create a NodeDef proto.
+
+    Args:
+      op_type: Value for the "op" attribute of the NodeDef proto.
+      name: Value for the "name" attribute of the NodeDef proto.
+      device: string, device, or function from NodeDef to string.
+        Value for the "device" attribute of the NodeDef proto.
+      attrs: Optional dictionary where the key is the attribute name (a string)
+        and the value is the respective "attr" attribute of the NodeDef proto (an
+        AttrValue).
+
+    Returns:
+      A node_def_pb2.NodeDef protocol buffer.
+    """
+    node_def = node_def_pb2.NodeDef()
+    node_def.op = compat.as_bytes(op_type)
+    node_def.name = compat.as_bytes(name)
+    if attrs is not None:
+        for k, v in six.iteritems(attrs):
+            node_def.attr[k].CopyFrom(v)
+    # if device is not None:
+    #     if callable(device):
+    #         node_def.device = device(node_def)
+    #     else:
+    #         node_def.device = _device_string(device)
+    return node_def
+
