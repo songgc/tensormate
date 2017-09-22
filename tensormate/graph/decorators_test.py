@@ -30,7 +30,7 @@ class ShapeInfoTest(tf.test.TestCase):
 
 class GraphInfoTest(tf.test.TestCase):
 
-    cached = False
+    cached = True
 
     @graph_info(cached=cached)
     def graph(self, inputs, num_outputs):
@@ -43,6 +43,11 @@ class GraphInfoTest(tf.test.TestCase):
         outputs = self.graph(inputs, num_outputs=16)
         if GraphInfoTest.cached:
             pprint(self.graph.result)
+            html = self.graph.viz_html_string
+            output_file = "/home/guocong/git/github/tensormate/test1.html"
+            with open(output_file, "tw") as f:
+                f.write(html)
+
 
 if __name__ == '__main__':
     tf.test.main()

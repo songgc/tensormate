@@ -130,14 +130,24 @@ class _GraphInfo(_GraphDecoratorBase):
         super(_GraphInfo, self).__init__(func)
         self._cached = cached
         self._result = []
+        self._graph_def = None
         self._input_tensors = None
 
     @property
     def result(self):
         return self._result
 
+    @property
+    def graph_def(self):
+        return self._graph_def
+
+    @property
+    def viz_html_string(self):
+        return self._visualize(self._graph_def, output_file=None)
+
     def clear(self):
         self._result.clear()
+        self._graph_def = None
 
     def _before_call(self, *args, **kwargs):
         self._input_tensors = _find_input_tensors(args, kwargs)
@@ -159,6 +169,10 @@ class _GraphInfo(_GraphDecoratorBase):
                 op = subgraph.node_by_name(node).op
                 inputs = subgraph.edges(node)
                 self._result.append((node, op, shapes, inputs))
+            g = subgraph.new_graph(subgraph_nodes, input_node_names)
+            self._graph_def = subgraph.strip_consts(g, max_const_size=32)
+
+            # self._visualize(g, output_file="/home/guocong/git/github/tensormate/test1.html")
         else:
             tf.logging.info("------Subgraph------")
             vars = []
@@ -185,15 +199,36 @@ class _GraphInfo(_GraphDecoratorBase):
                 tf.logging.info(fmt.format(*t))
             tf.logging.info("------end------")
 
-        g = subgraph.new_graph(subgraph_nodes, input_node_names)
-        subgraph.visualize(g, output_file="/home/guocong/git/github/tensormate/test1.html")
-
     @staticmethod
     def get_output_shapes_by_node_name(node_name, graph=None):
         graph = tf.get_default_graph() if graph is None else graph
         outputs = graph.get_operation_by_name(node_name).outputs
         shapes = [output.get_shape().as_list() for output in outputs]
         return tuple(shapes) if len(shapes) > 1 else shapes[0]
+
+    @staticmethod
+    def _visualize(graph_def, output_file=None):
+        """Visualize TensorFlow graph."""
+        # strip_def = SubGraph.strip_consts(graph_def, max_const_size=32)
+        code = """
+            <script>
+              function load() {{
+                document.getElementById("{id}").pbtxt = {data};
+              }}
+            </script>
+            <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
+            <div style="height:600px">
+              <tf-graph-basic id="{id}"></tf-graph-basic>
+            </div>
+        """.format(data=repr(str(graph_def)), id='graph' + str(np.random.rand()))
+
+        iframe = """
+            <iframe seamless style="width:1200px;height:620px;border:0" srcdoc="{}"></iframe>
+        """.format(code.replace('"', '&quot;'))
+        if output_file is None:
+            return iframe
+        with open(output_file, "tw") as f:
+            f.write(iframe)
 
 
 class SubGraph(object):
@@ -284,36 +319,12 @@ class SubGraph(object):
                 #     to_be_inputed.append(name)
         for name in input_names:
             op = tf.get_default_graph().get_operation_by_name(name)
-            node = _NodeDef("Placeholder", name)
+            node = SubGraph._node_def("Placeholder", name)
             out_graph.node.extend([node])
             if op.outputs:
                 out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
                     output.get_shape().as_proto() for output in op.outputs])
         return out_graph
-
-    @staticmethod
-    def visualize(graph_def, output_file=None):
-        """Visualize TensorFlow graph."""
-        strip_def = SubGraph.strip_consts(graph_def, max_const_size=32)
-        code = """
-            <script>
-              function load() {{
-                document.getElementById("{id}").pbtxt = {data};
-              }}
-            </script>
-            <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
-            <div style="height:600px">
-              <tf-graph-basic id="{id}"></tf-graph-basic>
-            </div>
-        """.format(data=repr(str(strip_def)), id='graph' + str(np.random.rand()))
-
-        iframe = """
-            <iframe seamless style="width:1200px;height:620px;border:0" srcdoc="{}"></iframe>
-        """.format(code.replace('"', '&quot;'))
-        if output_file is None:
-            return iframe
-        with open(output_file, "tw") as f:
-            f.write(iframe)
 
     @staticmethod
     def strip_consts(graph_def, max_const_size=32):
@@ -329,32 +340,32 @@ class SubGraph(object):
                     tensor.tensor_content = str.encode("<stripped %s bytes>" % size)
         return strip_def
 
+    @staticmethod
+    def _node_def(op_type, name, device=None, attrs=None):
+        """Create a NodeDef proto.
 
-def _NodeDef(op_type, name, device=None, attrs=None):
-    """Create a NodeDef proto.
+        Args:
+          op_type: Value for the "op" attribute of the NodeDef proto.
+          name: Value for the "name" attribute of the NodeDef proto.
+          device: string, device, or function from NodeDef to string.
+            Value for the "device" attribute of the NodeDef proto.
+          attrs: Optional dictionary where the key is the attribute name (a string)
+            and the value is the respective "attr" attribute of the NodeDef proto (an
+            AttrValue).
 
-    Args:
-      op_type: Value for the "op" attribute of the NodeDef proto.
-      name: Value for the "name" attribute of the NodeDef proto.
-      device: string, device, or function from NodeDef to string.
-        Value for the "device" attribute of the NodeDef proto.
-      attrs: Optional dictionary where the key is the attribute name (a string)
-        and the value is the respective "attr" attribute of the NodeDef proto (an
-        AttrValue).
-
-    Returns:
-      A node_def_pb2.NodeDef protocol buffer.
-    """
-    node_def = node_def_pb2.NodeDef()
-    node_def.op = compat.as_bytes(op_type)
-    node_def.name = compat.as_bytes(name)
-    if attrs is not None:
-        for k, v in six.iteritems(attrs):
-            node_def.attr[k].CopyFrom(v)
-    # if device is not None:
-    #     if callable(device):
-    #         node_def.device = device(node_def)
-    #     else:
-    #         node_def.device = _device_string(device)
-    return node_def
+        Returns:
+          A node_def_pb2.NodeDef protocol buffer.
+        """
+        node_def = node_def_pb2.NodeDef()
+        node_def.op = compat.as_bytes(op_type)
+        node_def.name = compat.as_bytes(name)
+        if attrs is not None:
+            for k, v in six.iteritems(attrs):
+                node_def.attr[k].CopyFrom(v)
+        # if device is not None:
+        #     if callable(device):
+        #         node_def.device = device(node_def)
+        #     else:
+        #         node_def.device = _device_string(device)
+        return node_def
 
