@@ -1,13 +1,13 @@
+import copy
 import types
-from functools import wraps
-import tensorflow as tf
-import numpy as np
 from collections import Counter
+from functools import wraps
+
+import numpy as np
+import six
+import tensorflow as tf
 from tensorflow.core.framework import graph_pb2, node_def_pb2
 from tensorflow.python.util import compat
-import six
-import copy
-from pprint import pprint
 
 
 def auto_reuse(scope=""):
@@ -172,7 +172,6 @@ class _GraphInfo(_GraphDecoratorBase):
             g = subgraph.new_graph(subgraph_nodes, input_node_names)
             self._graph_def = subgraph.strip_consts(g, max_const_size=32)
 
-            # self._visualize(g, output_file="/home/guocong/git/github/tensormate/test1.html")
         else:
             tf.logging.info("------Subgraph------")
             vars = []
@@ -238,10 +237,8 @@ class SubGraph(object):
 
         edges = {}  # Keyed by the dest node name.
         name_to_node_map = {}  # Keyed by node name.
-        # name_scope = tf.contrib.framework.get_name_scope()
         node_seq = {}  # Keyed by node name.
         seq = 0
-        # graph = tf.get_default_graph()
         graph_def = self._graph.as_graph_def()
         for node in graph_def.node:
             n = _node_name(node.name)
@@ -293,7 +290,6 @@ class SubGraph(object):
 
     def new_graph(self, node_names, input_names):
         out_graph = graph_pb2.GraphDef()
-        # to_be_inputed = []
         for node_name in node_names:
             if node_name in input_names:
                 continue
@@ -303,20 +299,7 @@ class SubGraph(object):
             if op.outputs:
                 out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
                     output.get_shape().as_proto() for output in op.outputs])
-            # for name in node.input:
-            #     if "/" not in name:
-            #         to_be_inputed.append(name)
-            #     else:
-            #         flag = False
-            #         for scope in self._name_scope:
-            #             seq = scope.split("/")
-            #             if "/".join(name.split("/")[0: len(seq)]) == scope:
-            #                 flag = True
-            #                 break
-            #         if not flag:
-            #             to_be_inputed.append(name)
-                # elif name.split("/")[0] != self.scope:
-                #     to_be_inputed.append(name)
+
         for name in input_names:
             op = tf.get_default_graph().get_operation_by_name(name)
             node = SubGraph._node_def("Placeholder", name)
