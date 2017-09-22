@@ -18,9 +18,9 @@ def shape_info(cached=False):
     return _wrapper
 
 
-def op_info(cached=False):
+def graph_info(cached=False):
     def _wrapper(func):
-        return _OpInfo(func, cached)
+        return _GraphInfo(func, cached)
     return _wrapper
 
 
@@ -121,9 +121,9 @@ class _ShapeInfo(_GraphDecoratorBase):
         self._result.clear()
 
 
-class _OpInfo(_GraphDecoratorBase):
+class _GraphInfo(_GraphDecoratorBase):
     def __init__(self, func, cached):
-        super(_OpInfo, self).__init__(func)
+        super(_GraphInfo, self).__init__(func)
         self._cached = cached
         self._result = []
         self._input_tensors = None
@@ -151,7 +151,7 @@ class _OpInfo(_GraphDecoratorBase):
 
         if self._cached:
             for node in subgraph_nodes:
-                shapes = _OpInfo.get_output_shapes_by_node_name(node)
+                shapes = _GraphInfo.get_output_shapes_by_node_name(node)
                 op = subgraph.node_by_name(node).op
                 inputs = subgraph.edges(node)
                 self._result.append((node, op, shapes, inputs))
@@ -160,7 +160,7 @@ class _OpInfo(_GraphDecoratorBase):
             vars = []
             ops = []
             for node in subgraph_nodes:
-                shapes = _OpInfo.get_output_shapes_by_node_name(node)
+                shapes = _GraphInfo.get_output_shapes_by_node_name(node)
                 op = subgraph.node_by_name(node).op
                 inputs = subgraph.edges(node)
                 if "Variable" in op:
