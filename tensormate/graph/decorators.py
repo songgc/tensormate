@@ -10,7 +10,7 @@ from tensorflow.core.framework import graph_pb2, node_def_pb2
 from tensorflow.python.util import compat
 
 
-def auto_reuse(scope=""):
+def auto_reuse(scope=None):
     def _wrapper(func):
         return _AutoReuse(func, scope)
     return _wrapper
@@ -66,9 +66,9 @@ class _GraphDecoratorBase(object):
 
 
 class _AutoReuse(_GraphDecoratorBase):
-    def __init__(self, func, scope=""):
+    def __init__(self, func, scope=None):
         super(_AutoReuse, self).__init__(func=func)
-        self._scope = scope
+        self._scope = "" if scope is None else scope
         self._ref_count = 0
 
     def __call__(self, *args, **kwargs):
@@ -96,26 +96,26 @@ class _ShapeInfo(_GraphDecoratorBase):
     def _before_call(self, *args, **kwargs):
         tensors = _find_input_tensors(args, kwargs)
         if self._cached:
-            self._add_to_table(tensors, "inputs")
+            self._add_to_table(tensors, "INPUT")
         else:
-            _ShapeInfo._log_shape(tensors, "INPUTS")
+            _ShapeInfo._log_shape(tensors, "INPUT")
 
     def _after_call(self, output):
         tensors = output if isinstance(output, (tuple, list)) else [output]
         if self._cached:
-            self._add_to_table(tensors, "outputs")
+            self._add_to_table(tensors, "OUTPUT")
         else:
-            _ShapeInfo._log_shape(tensors, "OUTPUTS")
+            _ShapeInfo._log_shape(tensors, "OUTPUT")
 
     @staticmethod
-    def _log_shape(tensors, prefix):
+    def _log_shape(tensors, io_type):
         for tensor in tensors:
-            msg = "{:8}{:<45}{}".format(prefix, tensor.name, str(tensor.get_shape().as_list()))
+            msg = " {:<40}{:15}{}".format(tensor.name, io_type, str(tensor.get_shape().as_list()))
             tf.logging.info(msg)
 
-    def _add_to_table(self, tensors, prefix):
+    def _add_to_table(self, tensors, io_type):
         for tensor in tensors:
-            self._result.append((prefix, tensor.name, tensor.get_shape().as_list()))
+            self._result.append((tensor.name, io_type, tensor.get_shape().as_list()))
 
     @property
     def result(self):
@@ -129,9 +129,14 @@ class _GraphInfo(_GraphDecoratorBase):
     def __init__(self, func, cached):
         super(_GraphInfo, self).__init__(func)
         self._cached = cached
+        self._id = None
         self._result = []
         self._graph_def = None
         self._input_tensors = None
+
+    @property
+    def id(self):
+        return self._id
 
     @property
     def result(self):
@@ -146,6 +151,7 @@ class _GraphInfo(_GraphDecoratorBase):
         return self._visualize(self._graph_def, output_file=None)
 
     def clear(self):
+        self._id = None
         self._result.clear()
         self._graph_def = None
 
@@ -156,6 +162,7 @@ class _GraphInfo(_GraphDecoratorBase):
         input_node_names = [_node_name(node.name) for node in self._input_tensors]
         output_nodes = output if isinstance(output, (tuple, list)) else [output]
         dest_node_names = [_node_name(node.name) for node in output_nodes]
+        self._id = str(dest_node_names)
 
         graph = tf.get_default_graph()
         subgraph = SubGraph(name_scope=tf.contrib.framework.get_name_scope(), graph=graph)
@@ -173,9 +180,10 @@ class _GraphInfo(_GraphDecoratorBase):
             self._graph_def = subgraph.strip_consts(g, max_const_size=32)
 
         else:
-            tf.logging.info("------Subgraph------")
+            tf.logging.info("------Subgraph for {} ------".format(self.id))
             vars = []
             ops = []
+            io_info = []
             for node in subgraph_nodes:
                 shapes = _GraphInfo.get_output_shapes_by_node_name(node)
                 op = subgraph.node_by_name(node).op
@@ -184,6 +192,10 @@ class _GraphInfo(_GraphDecoratorBase):
                     num_params = np.prod(shapes)
                     vars.append((node, str(shapes), num_params))
                 ops.append(op)
+                if node in input_node_names:
+                    io_info.append((node, "INPUT", shapes))
+                if node in dest_node_names:
+                    io_info.append((node, "OUTPUT", shapes))
                 fmt = " {:<40}{:15}{:<22}{}"
                 msg = fmt.format(node, op, str(shapes), str(inputs))
                 tf.logging.info(msg)
@@ -196,7 +208,11 @@ class _GraphInfo(_GraphDecoratorBase):
             counter = Counter(ops)
             for t in counter.most_common(len(ops)):
                 tf.logging.info(fmt.format(*t))
-            tf.logging.info("------end------")
+            tf.logging.info("------IO------")
+            fmt = " {:<40}{:15}{}"
+            for t in io_info:
+                tf.logging.info(fmt.format(*t))
+            tf.logging.info("------End for {}------".format(self.id))
 
     @staticmethod
     def get_output_shapes_by_node_name(node_name, graph=None):
