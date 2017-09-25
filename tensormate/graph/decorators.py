@@ -159,16 +159,17 @@ class _GraphInfo(_GraphDecoratorBase):
         self._input_tensors = _find_input_tensors(args, kwargs)
 
     def _after_call(self, output):
+        self._input_tensors = [tensor for tensor in self._input_tensors if tensor.consumers()]
         input_node_names = [_node_name(node.name) for node in self._input_tensors]
         output_nodes = output if isinstance(output, (tuple, list)) else [output]
         dest_node_names = [_node_name(node.name) for node in output_nodes]
         self._id = str(dest_node_names)
 
         graph = tf.get_default_graph()
-        subgraph = SubGraph(name_scope=tf.contrib.framework.get_name_scope(), graph=graph)
-        subgraph_nodes = subgraph.extract_subgraph_nodes(dest_node_names)
-        before_input_nodes = subgraph.extract_subgraph_nodes(input_node_names)
-        subgraph_nodes = [node for node in subgraph_nodes if node not in before_input_nodes or node in input_node_names]
+        subgraph = SubGraph(graph=graph)
+        subgraph_nodes = subgraph.extract_subgraph_nodes(dest_node_names, input_node_names)
+        # before_input_nodes = subgraph.extract_subgraph_nodes(input_node_names)
+        # subgraph_nodes = [node for node in subgraph_nodes if node not in before_input_nodes or node in input_node_names]
 
         if self._cached:
             for node in subgraph_nodes:
@@ -247,8 +248,8 @@ class _GraphInfo(_GraphDecoratorBase):
 
 
 class SubGraph(object):
-    def __init__(self, name_scope=None, graph=None):
-        self._name_scope = "" if name_scope is None else name_scope
+    def __init__(self, graph=None):
+        # self._name_scope = "" if name_scope is None else name_scope
         self._graph = tf.get_default_graph() if graph is None else graph
 
         # edges = {}  # Keyed by the dest node name.
@@ -271,9 +272,9 @@ class SubGraph(object):
         # self._name_to_node_map = name_to_node_map
         # self._node_seq = node_seq
 
-    @property
-    def name_scope(self):
-        return self._name_scope
+    # @property
+    # def name_scope(self):
+    #     return self._name_scope
 
     @property
     def graph(self):
@@ -294,7 +295,9 @@ class SubGraph(object):
         op = self.graph.get_operation_by_name(node_name)
         return op._id
 
-    def extract_subgraph_nodes(self, dest_node_names):
+    def extract_subgraph_nodes(self, dest_node_names, input_node_names=None):
+        input_node_names = [] if input_node_names is None else input_node_names
+        input_node_set = set(input_node_names)
         nodes_to_keep = set()
         # Breadth first search to find all the nodes that we should keep.
         # next_to_visit = dest_node_names[:]
@@ -307,7 +310,8 @@ class SubGraph(object):
                 # Already visited this node.
                 continue
             nodes_to_keep.add(n)
-            next_to_visit.extend(self.edges(n))
+            if n not in input_node_set:
+                next_to_visit.extend(self.edges(n))
 
         nodes_to_keep_list = sorted(list(nodes_to_keep), key=lambda n: self.seq_by_name(n))
         return nodes_to_keep_list
