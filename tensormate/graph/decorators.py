@@ -1,6 +1,6 @@
 import copy
 import types
-from collections import Counter
+from collections import Counter, deque
 from functools import wraps
 
 import numpy as np
@@ -251,25 +251,25 @@ class SubGraph(object):
         self._name_scope = "" if name_scope is None else name_scope
         self._graph = tf.get_default_graph() if graph is None else graph
 
-        edges = {}  # Keyed by the dest node name.
-        name_to_node_map = {}  # Keyed by node name.
-        node_seq = {}  # Keyed by node name.
-        seq = 0
-        graph_def = self._graph.as_graph_def()
-        for node in graph_def.node:
-            n = _node_name(node.name)
-            if self._name_scope not in n:
-                # and n not in input_node_names:
-                # print(n)
-                continue
-            name_to_node_map[n] = node
-            edges[n] = [_node_name(x) for x in node.input]
-            node_seq[n] = seq
-            seq += 1
-
-        self._edges = edges
-        self._name_to_node_map = name_to_node_map
-        self._node_seq = node_seq
+        # edges = {}  # Keyed by the dest node name.
+        # name_to_node_map = {}  # Keyed by node name.
+        # node_seq = {}  # Keyed by node name.
+        # seq = 0
+        # graph_def = self._graph.as_graph_def()
+        # for node in graph_def.node:
+        #     n = _node_name(node.name)
+        #     if self._name_scope not in n:
+        #         # and n not in input_node_names:
+        #         # print(n)
+        #         continue
+        #     name_to_node_map[n] = node
+        #     edges[n] = [_node_name(x) for x in node.input]
+        #     node_seq[n] = seq
+        #     seq += 1
+        #
+        # self._edges = edges
+        # self._name_to_node_map = name_to_node_map
+        # self._node_seq = node_seq
 
     @property
     def name_scope(self):
@@ -280,26 +280,34 @@ class SubGraph(object):
         return self._graph
 
     def edges(self, node_name):
-        return self._edges[node_name]
+        # return self._edges[node_name]
+        op = self.graph.get_operation_by_name(node_name)
+        return op.node_def.input
 
     def node_by_name(self, node_name):
-        return self._name_to_node_map[node_name]
+        # return self._name_to_node_map[node_name]
+        op = self.graph.get_operation_by_name(node_name)
+        return op.node_def
 
     def seq_by_name(self, node_name):
-        return self._node_seq[node_name]
+        # return self._node_seq[node_name]
+        op = self.graph.get_operation_by_name(node_name)
+        return op._id
 
     def extract_subgraph_nodes(self, dest_node_names):
         nodes_to_keep = set()
         # Breadth first search to find all the nodes that we should keep.
-        next_to_visit = dest_node_names[:]
+        # next_to_visit = dest_node_names[:]
+        next_to_visit = deque(dest_node_names[:])
         while next_to_visit:
-            n = next_to_visit[0]
-            del next_to_visit[0]
+            # n = next_to_visit[0]
+            # del next_to_visit[0]
+            n = next_to_visit.popleft()
             if n in nodes_to_keep:
                 # Already visited this node.
                 continue
             nodes_to_keep.add(n)
-            next_to_visit += self.edges(n)
+            next_to_visit.extend(self.edges(n))
 
         nodes_to_keep_list = sorted(list(nodes_to_keep), key=lambda n: self.seq_by_name(n))
         return nodes_to_keep_list
@@ -311,13 +319,13 @@ class SubGraph(object):
                 continue
             node = self.node_by_name(node_name)
             out_graph.node.extend([copy.deepcopy(node)])
-            op = tf.get_default_graph().get_operation_by_name(node.name)
+            op = self.graph.get_operation_by_name(node.name)
             if op.outputs:
                 out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
                     output.get_shape().as_proto() for output in op.outputs])
 
         for name in input_names:
-            op = tf.get_default_graph().get_operation_by_name(name)
+            op = self.graph.get_operation_by_name(name)
             node = SubGraph._node_def("Placeholder", name)
             out_graph.node.extend([node])
             if op.outputs:
