@@ -2,6 +2,8 @@ import copy
 import types
 from collections import Counter, deque
 from functools import wraps
+import tempfile
+import os
 
 import numpy as np
 import six
@@ -133,6 +135,7 @@ class _GraphInfo(_GraphDecoratorBase):
         self._result = []
         self._graph_def = None
         self._input_tensors = None
+        self._graph_status = _GraphInfoStatus()
 
     @property
     def id(self):
@@ -179,6 +182,8 @@ class _GraphInfo(_GraphDecoratorBase):
                 self._result.append((node, op, shapes, inputs))
             g = subgraph.new_graph(subgraph_nodes, input_node_names)
             self._graph_def = subgraph.strip_consts(g, max_const_size=32)
+
+            self._graph_status.update(self.id, self._graph_def)
 
         else:
             tf.logging.info("------Subgraph for {} ------".format(self.id))
@@ -233,13 +238,14 @@ class _GraphInfo(_GraphDecoratorBase):
               }}
             </script>
             <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
-            <div style="height:600px">
+            <p><center> graph </center></p>
+            <div style="height:800px">
               <tf-graph-basic id="{id}"></tf-graph-basic>
             </div>
         """.format(data=repr(str(graph_def)), id='graph' + str(np.random.rand()))
 
         iframe = """
-            <iframe seamless style="width:1200px;height:620px;border:0" srcdoc="{}"></iframe>
+            <iframe seamless style="width:1200px;height:800px;border:0" srcdoc="{}"></iframe>
         """.format(code.replace('"', '&quot;'))
         if output_file is None:
             return iframe
@@ -380,3 +386,46 @@ class SubGraph(object):
         #         node_def.device = _device_string(device)
         return node_def
 
+
+class SingletonType(type):
+    def __call__(cls, *args, **kwargs):
+        try:
+            return cls.__instance
+        except AttributeError:
+            cls.__instance = super(SingletonType, cls).__call__(*args, **kwargs)
+            return cls.__instance
+
+
+class _GraphInfoStatus(object):
+    __metaclass__ = SingletonType
+
+    def __init__(self):
+        self._count = 0
+        self._tmp_dir = tempfile.mkdtemp(prefix="tensormate_")
+        self._update_seq = []
+        tf.logging.warn("A temporary dir was made at {}".format(self.tmp_dir))
+        self._index_file = os.path.join(self.tmp_dir, "index.html")
+
+    @property
+    def count(self):
+        return self._count
+
+    @property
+    def tmp_dir(self):
+        return self._tmp_dir
+
+    def update(self, output_names, graph_def, cached=False):
+        self._count += 1
+        graph_str = str(graph_def)
+        if cached:
+            self._update_seq.append((str(output_names), graph_str))
+        fn_pb = os.path.join(self.tmp_dir, "{}.pbtxt".format(self.count - 1))
+        fn_html = os.path.join(self.tmp_dir, "{}.html".format(self.count - 1))
+        with open(fn_pb, "wt") as f:
+            f.write(graph_str)
+        with open(fn_html, "wt") as f:
+            f.write(_GraphInfo._visualize(graph_str))
+        with open(self._index_file, "at") as f:
+            f.write("""
+            <p><a href="{}">{}</a></p> 
+            """.format(fn_html, str(output_names)))
