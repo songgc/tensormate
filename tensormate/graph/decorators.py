@@ -151,7 +151,7 @@ class _GraphInfo(_GraphDecoratorBase):
 
     @property
     def viz_html_string(self):
-        return self._visualize(self._graph_def, output_file=None)
+        return convert_graph_def_to_html(self._graph_def, graph_name=self.id, output_file=None)
 
     def clear(self):
         self._id = None
@@ -227,30 +227,30 @@ class _GraphInfo(_GraphDecoratorBase):
         shapes = [output.get_shape().as_list() for output in outputs]
         return tuple(shapes) if len(shapes) > 1 else shapes[0]
 
-    @staticmethod
-    def _visualize(graph_def, output_file=None):
-        """Visualize TensorFlow graph."""
-        # strip_def = SubGraph.strip_consts(graph_def, max_const_size=32)
-        code = """
-            <script>
-              function load() {{
-                document.getElementById("{id}").pbtxt = {data};
-              }}
-            </script>
-            <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
-            <p><center> graph </center></p>
-            <div style="height:800px">
-              <tf-graph-basic id="{id}"></tf-graph-basic>
-            </div>
-        """.format(data=repr(str(graph_def)), id='graph' + str(np.random.rand()))
 
-        iframe = """
-            <iframe seamless style="width:1200px;height:800px;border:0" srcdoc="{}"></iframe>
-        """.format(code.replace('"', '&quot;'))
-        if output_file is None:
-            return iframe
-        with open(output_file, "tw") as f:
-            f.write(iframe)
+def convert_graph_def_to_html(graph_def, graph_name, output_file=None):
+    """Visualize TensorFlow graph."""
+    # strip_def = SubGraph.strip_consts(graph_def, max_const_size=32)
+    code = """
+        <script>
+          function load() {{
+            document.getElementById("{id}").pbtxt = {data};
+          }}
+        </script>
+        <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
+        <p><center> outputs: {graph_name} </center></p>
+        <div style="height:800px">
+          <tf-graph-basic id="{id}"></tf-graph-basic>
+        </div>
+    """.format(data=repr(str(graph_def)), graph_name=graph_name, id='graph' + str(np.random.rand()))
+
+    iframe = """
+        <iframe seamless style="width:1200px;height:800px;border:0" srcdoc="{}"></iframe>
+    """.format(code.replace('"', '&quot;'))
+    if output_file is None:
+        return iframe
+    with open(output_file, "tw") as f:
+        f.write(iframe)
 
 
 class SubGraph(object):
@@ -424,7 +424,7 @@ class _GraphInfoStatus(object):
         with open(fn_pb, "wt") as f:
             f.write(graph_str)
         with open(fn_html, "wt") as f:
-            f.write(_GraphInfo._visualize(graph_str))
+            f.write(convert_graph_def_to_html(graph_str, str(output_names)))
         with open(self._index_file, "at") as f:
             f.write("""
             <p><a href="{}">{}</a></p> 
