@@ -46,6 +46,8 @@ class GraphInfoTest(tf.test.TestCase):
         outputs_1 = self.fwd_graph(inputs, num_outputs=16, reuse=True)
         if GraphInfoTest.cached:
             self.check_result("/home/guocong/git/github/tensormate/test2.html")
+        self.assertEqual(self.fwd_graph.count, 2)
+        self.assertEqual(self.fwd_graph.__name__, self.fwd_graph.__wrapped__.__name__)
 
     def check_result(self, output_file):
         pprint(self.fwd_graph.result)

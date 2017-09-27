@@ -47,6 +47,11 @@ def _node_name(n):
 class _GraphDecoratorBase(object):
     def __init__(self, func):
         wraps(func)(self)
+        self._count = 0
+
+    @property
+    def count(self):
+        return self._count
 
     def __get__(self, instance, type=None):
         if instance is None:
@@ -64,6 +69,7 @@ class _GraphDecoratorBase(object):
         self._before_call(*args, **kwargs)
         output = self.__wrapped__(*args, **kwargs)
         self._after_call(output)
+        self._count += 1
         return output
 
 
@@ -96,6 +102,7 @@ class _ShapeInfo(_GraphDecoratorBase):
         self._result = []
 
     def _before_call(self, *args, **kwargs):
+        self.clear()
         tensors = _find_input_tensors(args, kwargs)
         if self._cached:
             self._add_to_table(tensors, "INPUT")
@@ -157,8 +164,10 @@ class _GraphInfo(_GraphDecoratorBase):
         self._id = None
         self._result.clear()
         self._graph_def = None
+        self._input_tensors = None
 
     def _before_call(self, *args, **kwargs):
+        self.clear()
         self._input_tensors = _find_input_tensors(args, kwargs)
 
     def _after_call(self, output):
@@ -183,7 +192,7 @@ class _GraphInfo(_GraphDecoratorBase):
             g = subgraph.new_graph(subgraph_nodes, input_node_names)
             self._graph_def = subgraph.strip_consts(g, max_const_size=32)
 
-            self._graph_status.update(self.id, self._graph_def)
+            self._graph_status.update(self.__wrapped__.__name__, self.id, self._graph_def)
 
         else:
             tf.logging.info("------Subgraph for {} ------".format(self.id))
@@ -238,7 +247,7 @@ def convert_graph_def_to_html(graph_def, graph_name, output_file=None):
           }}
         </script>
         <link rel="import" href="https://tensorboard.appspot.com/tf-graph-basic.build.html" onload=load()>
-        <p><center> outputs: {graph_name} </center></p>
+        <p><center> {graph_name} </center></p>
         <div style="height:800px">
           <tf-graph-basic id="{id}"></tf-graph-basic>
         </div>
@@ -414,18 +423,20 @@ class _GraphInfoStatus(object):
     def tmp_dir(self):
         return self._tmp_dir
 
-    def update(self, output_names, graph_def, cached=False):
-        self._count += 1
+    def update(self, func_name, output_names, graph_def, cached=False):
         graph_str = str(graph_def)
         if cached:
-            self._update_seq.append((str(output_names), graph_str))
-        fn_pb = os.path.join(self.tmp_dir, "{}.pbtxt".format(self.count - 1))
-        fn_html = os.path.join(self.tmp_dir, "{}.html".format(self.count - 1))
+            self._update_seq.append((func_name, str(output_names), graph_str))
+        file_name = str(self.count) + "_" + func_name
+        fn_pb = os.path.join(self.tmp_dir, "{}.pbtxt".format(file_name))
+        fn_html = os.path.join(self.tmp_dir, "{}.html".format(file_name))
+        graph_name = func_name + ": " + str(output_names)
         with open(fn_pb, "wt") as f:
             f.write(graph_str)
         with open(fn_html, "wt") as f:
-            f.write(convert_graph_def_to_html(graph_str, str(output_names)))
+            f.write(convert_graph_def_to_html(graph_str, graph_name))
         with open(self._index_file, "at") as f:
             f.write("""
             <p><a href="{}">{}</a></p> 
-            """.format(fn_html, str(output_names)))
+            """.format(fn_html, graph_name))
+        self._count += 1
