@@ -10,6 +10,7 @@ import six
 import tensorflow as tf
 from tensorflow.core.framework import graph_pb2, node_def_pb2
 from tensorflow.python.util import compat
+from tensorflow.python.framework.ops import get_stats_for_node_def
 
 
 def auto_reuse(scope=None):
@@ -211,8 +212,9 @@ class _GraphInfo(_GraphDecoratorBase):
                     io_info.append((node, "INPUT", shapes))
                 if node in dest_node_names:
                     io_info.append((node, "OUTPUT", shapes))
-                fmt = " {:<40}{:15}{:<22}{}"
-                msg = fmt.format(node, op, str(shapes), str(inputs))
+                flops = get_stats_for_node_def(graph, subgraph.node_by_name(node), "flops").value
+                fmt = " {:<40}{:15}{:<22}{:>10}  {}"
+                msg = fmt.format(node, op, str(shapes), str(flops), str(inputs))
                 tf.logging.info(msg)
             tf.logging.info("------Variables------")
             fmt = " {:<40}{:<22}{}"
@@ -342,6 +344,9 @@ class SubGraph(object):
             if op.outputs:
                 out_graph.node[-1].attr["_output_shapes"].list.shape.extend([
                     output.get_shape().as_proto() for output in op.outputs])
+            flops = get_stats_for_node_def(self.graph, node, "flops").value
+            if flops is not None:
+                out_graph.node[-1].attr["_flops"].i = flops
 
         for name in input_names:
             op = self.graph.get_operation_by_name(name)
