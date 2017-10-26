@@ -79,7 +79,7 @@ class SupervisedLearningDataGenerator(TfGgraphBuilder):
         file_queue = tf.train.string_input_producer(self.file_list,
                                                     num_epochs=None,
                                                     shuffle=self.is_training,
-                                                    capacity=max(self.num_threads, 32))
+                                                    capacity=min(len(self.file_list), 65536))
         if debug:
             data, label = self.parse_and_decode(file_queue)
             return self._add_extra_ops([data, label], extra_op_name_list)
