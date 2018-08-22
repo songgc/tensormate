@@ -1,6 +1,7 @@
 import abc
 import glob
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
 from tensormate.graph.base import TfGgraphBuilder
@@ -22,6 +23,14 @@ class ImageDataSetParams(DataSetParams):
         self.image_height = None
         self.image_weight = None
         self.image_channels = 3
+        self.pixel_mean = None
+        self.pixel_std = None
+
+    @property
+    def pixel_bounds(self):
+        pixel_min = np.min((0.0 - self.pixel_mean) / self.pixel_std)
+        pixel_max = np.max((1.0 - self.pixel_mean) / self.pixel_std)
+        return pixel_min, pixel_max
 
 
 class SupervisedLearningDataGenerator(TfGgraphBuilder):
