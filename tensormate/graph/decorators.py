@@ -19,6 +19,12 @@ def auto_reuse(scope=None):
     return _wrapper
 
 
+def name_scope(scope=None):
+    def _wrapper(func):
+        return _NameScope(func, scope)
+    return _wrapper
+
+
 def shape_info(cached=False):
     def _wrapper(func):
         return _ShapeInfo(func, cached)
@@ -78,22 +84,38 @@ class _AutoReuse(_GraphDecoratorBase):
     def __init__(self, func, scope=None):
         super(_AutoReuse, self).__init__(func=func)
         self._scope = "" if scope is None else scope
-        self._ref_count = 0
+        # self._ref_count = 0
 
     def __call__(self, *args, **kwargs):
-        reuse = self.ref_count > 0
+        reuse = self.count > 0
         with tf.variable_scope(self._scope, reuse=reuse):
             output = self.__wrapped__(*args, **kwargs)
-        self._ref_count += 1
+        self._count += 1
         return output
 
     @property
     def scope(self):
         return self._scope
 
+    # @property
+    # def ref_count(self):
+    #     return self._ref_count
+
+
+class _NameScope(_GraphDecoratorBase):
+    def __init__(self, func, scope=None):
+        super(_NameScope, self).__init__(func=func)
+        self._scope = "" if scope is None else scope
+
+    def __call__(self, *args, **kwargs):
+        with tf.name_scope(name=self.scope):
+            output = self.__wrapped__(*args, **kwargs)
+        self._count += 1
+        return output
+
     @property
-    def ref_count(self):
-        return self._ref_count
+    def scope(self):
+        return self._scope
 
 
 class _ShapeInfo(_GraphDecoratorBase):
@@ -213,8 +235,9 @@ class _GraphInfo(_GraphDecoratorBase):
                 if node in dest_node_names:
                     io_info.append((node, "OUTPUT", shapes))
                 flops = get_stats_for_node_def(graph, subgraph.node_by_name(node), "flops").value
-                fmt = " {:<40}{:15}{:<22}{:>10}  {}"
-                msg = fmt.format(node, op, str(shapes), str(flops), str(inputs))
+                flops = np.nan if flops is None else flops / 1e6
+                fmt = " {:<40}{:15}{:<22}{:>15} {}"
+                msg = fmt.format(node, op, str(shapes), str(flops) + "MFLOPs", str(inputs))
                 tf.logging.info(msg)
             tf.logging.info("------Variables------")
             fmt = " {:<40}{:<22}{}"

@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib import layers
-from tensormate.graph import shape_info, graph_info
+from tensormate.graph import shape_info, graph_info, name_scope
 from pprint import pprint
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -26,6 +26,21 @@ class ShapeInfoTest(tf.test.TestCase):
             output_expected_shape = input_shape.copy()
             output_expected_shape[-1] = 16
             self.assertAllEqual(self.fwd_graph.result[1][-1], output_expected_shape)
+
+
+class NameScopeTest(tf.test.TestCase):
+
+    # @graph_info(cached=True)
+    @shape_info(cached=True)
+    @name_scope("my_scope")
+    def fwd_graph(self, inputs, num_outputs):
+        return layers.conv2d(inputs, num_outputs=num_outputs, kernel_size=[3, 3])
+
+    def test(self):
+        input_shape = [10, 24, 24, 3]
+        inputs = tf.Variable(tf.zeros(shape=input_shape))
+        outputs = self.fwd_graph(inputs, num_outputs=16)
+        print(self.fwd_graph.result)
 
 
 class GraphInfoTest(tf.test.TestCase):
