@@ -26,8 +26,8 @@ class ImageGraphBuilder(TfGgraphBuilder):
 
     def _call_body(self, *args, **kwargs):
         # is_training = kwargs.get("is_training", True)
-        reuse = self.ref_count > 0
-        with tf.variable_scope(self._scope, reuse=reuse):
+        # reuse = self.ref_count > 0
+        with tf.variable_scope(self._scope, reuse=tf.AUTO_REUSE):
             with arg_scope(self.data_format_ops, data_format=self.data_format):
                 if self._device is None:
                     output = self._build(*args, **kwargs)
