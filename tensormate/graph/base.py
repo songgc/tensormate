@@ -172,7 +172,7 @@ class TfGgraphBuilder(object):
         self.infer_output_shape(tensor)
 
     def infer_output_shape(self, tensor):
-        assert tf.is_numeric_tensor(tensor)
+        # assert tf.is_numeric_tensor(tensor)
         self._shapes.append((tensor.name, tensor.get_shape().as_list()))
 
     def get_shapes(self):
