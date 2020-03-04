@@ -23,7 +23,7 @@ class Feature(object):
         self.replace = replace
 
     @staticmethod
-    def int64_feature(value):
+    def _int64_feature(value):
         """Static method for converting int64 features into Feature proto.
         
         Args:
@@ -36,7 +36,7 @@ class Feature(object):
         return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
     @staticmethod
-    def float_feature(value):
+    def _float_feature(value):
         """Static method for converting float features into Feature proto.
         
         Args:
@@ -49,7 +49,7 @@ class Feature(object):
         return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
     @staticmethod
-    def bytes_feature(value):
+    def _bytes_feature(value):
         """Static method for converting bytes features into Feature proto.
         
         Args:
@@ -115,7 +115,7 @@ class Int64Feature(Feature):
 
     @staticmethod
     def _encode(value):
-        return Feature.int64_feature(value)
+        return Feature._int64_feature(value)
 
 
 class Float32Feature(Feature):
@@ -133,7 +133,7 @@ class Float32Feature(Feature):
 
     @staticmethod
     def _encode(value):
-        return Feature.float_feature(value)
+        return Feature._float_feature(value)
 
 
 class BytesFeature(Feature):
@@ -151,7 +151,7 @@ class BytesFeature(Feature):
 
     @staticmethod
     def _encode(value):
-        return Feature.bytes_feature(value)
+        return Feature._bytes_feature(value)
 
 
 class SparseFeature(Feature):
@@ -176,7 +176,7 @@ class SparseInt64Feature(SparseFeature):
 
     @staticmethod
     def _encode(value):
-        return Feature.int64_feature(value)
+        return Feature._int64_feature(value)
 
 
 class SparseFloat32Feature(SparseFeature):
@@ -185,7 +185,7 @@ class SparseFloat32Feature(SparseFeature):
 
     @staticmethod
     def _encode(value):
-        return Feature.float_feature(value)
+        return Feature._float_feature(value)
 
 
 class SparseBytesFeature(SparseFeature):
@@ -194,7 +194,7 @@ class SparseBytesFeature(SparseFeature):
 
     @staticmethod
     def _encode(value):
-        return Feature.bytes_feature(value)
+        return Feature._bytes_feature(value)
 
 
 class FeatureList(object):
@@ -207,19 +207,19 @@ class FeatureList(object):
         self.replace = replace
 
     @staticmethod
-    def int64_feature(values):
+    def _int64_feature(values):
         """Wrapper for inserting int64 features into."""
-        return tf.train.FeatureList(feature=[Feature.int64_feature(value) for value in values])
+        return tf.train.FeatureList(feature=[Feature._int64_feature(value) for value in values])
 
     @staticmethod
-    def float_feature(values):
+    def _float_feature(values):
         """Wrapper for inserting float features into"""
-        return tf.train.FeatureList(feature=[Feature.float_feature(value) for value in values])
+        return tf.train.FeatureList(feature=[Feature._float_feature(value) for value in values])
 
     @staticmethod
-    def bytes_feature(values):
+    def _bytes_feature(values):
         """Wrapper for inserting bytes features into"""
-        return tf.train.FeatureList(feature=[Feature.bytes_feature(value) for value in values])
+        return tf.train.FeatureList(feature=[Feature._bytes_feature(value) for value in values])
 
     @staticmethod
     def _encode(value):
@@ -250,7 +250,7 @@ class Int64FeatureList(FeatureList):
 
     @staticmethod
     def _encode(values):
-        return FeatureList.int64_feature(values)
+        return FeatureList._int64_feature(values)
 
 
 class Float32FeatureList(FeatureList):
@@ -260,7 +260,7 @@ class Float32FeatureList(FeatureList):
 
     @staticmethod
     def _encode(values):
-        return FeatureList.float_feature(values)
+        return FeatureList._float_feature(values)
 
 
 class BytesFeatureList(FeatureList):
@@ -270,7 +270,7 @@ class BytesFeatureList(FeatureList):
 
     @staticmethod
     def _encode(values):
-        return FeatureList.bytes_feature(values)
+        return FeatureList._bytes_feature(values)
 
 
 class FeaturesMeta(type):
