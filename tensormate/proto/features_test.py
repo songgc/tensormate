@@ -3,9 +3,11 @@ import numpy as np
 import tensorflow as tf
 from tensormate.proto import features
 
+tf.compat.v1.disable_eager_execution()
+
 
 def _run_tf_session(fetches):
-    with tf.train.SingularMonitoredSession() as sess:
+    with tf.compat.v1.train.SingularMonitoredSession() as sess:
         out = sess.run(fetches)
     return out
 
@@ -39,7 +41,7 @@ class FeaturesTest(unittest.TestCase):
         ]
         example = TestFeatures.to_pb_example(feature_tuples)
         # decode
-        parsed = tf.parse_single_example(serialized=example.SerializeToString(), features=TestFeatures.feature_map())
+        parsed = tf.io.parse_single_example(serialized=example.SerializeToString(), features=TestFeatures.feature_map())
         values = _run_tf_session(parsed)
         self.assertEqual(values[TestFeatures.feature_a.name], self.value_a)
         self.assertEqual(values[TestFeatures.feature_b.name], self.value_b)
@@ -58,12 +60,12 @@ class FeaturesTest(unittest.TestCase):
         example = tf.train.Example(features=proto_features)
         # decode
         feature_map = {
-            "feature/a": tf.FixedLenFeature(shape=[], dtype=tf.int64, default_value=-1),
-            "feature_b": tf.FixedLenFeature(shape=[], dtype=tf.float32, default_value=-1),
-            "feature/c": tf.FixedLenFeature(shape=[], dtype=tf.string, default_value=""),
-            "feature_sparse": tf.VarLenFeature(dtype=tf.int64),
+            "feature/a": tf.io.FixedLenFeature(shape=[], dtype=tf.int64, default_value=-1),
+            "feature_b": tf.io.FixedLenFeature(shape=[], dtype=tf.float32, default_value=-1),
+            "feature/c": tf.io.FixedLenFeature(shape=[], dtype=tf.string, default_value=""),
+            "feature_sparse": tf.io.VarLenFeature(dtype=tf.int64),
         }
-        parsed = tf.parse_single_example(serialized=example.SerializeToString(), features=feature_map)
+        parsed = tf.io.parse_single_example(serialized=example.SerializeToString(), features=feature_map)
         values = _run_tf_session(parsed)
         self.assertEqual(values["feature/a"], self.value_a)
         self.assertEqual(values["feature_b"], self.value_b)
@@ -98,7 +100,7 @@ class SequenceFeaturesTest(unittest.TestCase):
         ]
         seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples)
         # decode
-        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+        context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
             serialized=seq_ex.SerializeToString(),
             context_features=TestSequenceFeatures.context_feature_map(),
             sequence_features=TestSequenceFeatures.feature_list_map()
@@ -128,15 +130,15 @@ class SequenceFeaturesTest(unittest.TestCase):
             fl_bytes.feature.add().bytes_list.value.append(byte)
         # decode
         context_features = {
-            "length": tf.FixedLenFeature([], dtype=tf.int64)
+            "length": tf.io.FixedLenFeature([], dtype=tf.int64)
         }
         sequence_features = {
-            "tokens": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-            "labels": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-            "floats": tf.FixedLenSequenceFeature([], dtype=tf.float32),
-            "bytes": tf.FixedLenSequenceFeature([], dtype=tf.string),
+            "tokens": tf.io.FixedLenSequenceFeature([], dtype=tf.int64),
+            "labels": tf.io.FixedLenSequenceFeature([], dtype=tf.int64),
+            "floats": tf.io.FixedLenSequenceFeature([], dtype=tf.float32),
+            "bytes": tf.io.FixedLenSequenceFeature([], dtype=tf.string),
         }
-        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+        context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
             serialized=seq_ex.SerializeToString(),
             context_features=context_features,
             sequence_features=sequence_features

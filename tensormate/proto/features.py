@@ -84,7 +84,7 @@ class Feature(object):
         Returns:
           Parsing type for proto example deserialization.
         """
-        return tf.FixedLenFeature(self.shape, self.dtype, self.default)
+        return tf.io.FixedLenFeature(self.shape, self.dtype, self.default)
 
     @property
     def name(self):
@@ -167,7 +167,7 @@ class SparseFeature(Feature):
 
     @property
     def parse_type(self):
-        return tf.VarLenFeature(self.dtype)
+        return tf.io.VarLenFeature(self.dtype)
 
 
 class SparseInt64Feature(SparseFeature):
@@ -232,7 +232,7 @@ class FeatureList(object):
 
     @property
     def parse_type(self):
-        return tf.FixedLenSequenceFeature(self.shape, self.dtype, self.allow_missing)
+        return tf.io.FixedLenSequenceFeature(self.shape, self.dtype, self.allow_missing)
 
     @property
     def name(self):
