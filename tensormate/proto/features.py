@@ -5,6 +5,16 @@ import tensorflow as tf
 
 
 class Feature(object):
+    """Base class for Feature
+    
+    Args:
+      name: feature name.
+      dtype: data type of input.
+      shape: data shape of input.
+      default: default value for serialization if value is None or value to be used if an example is missing 
+      in deserialization.
+      replace: a dictionary in which a string key is replaced by the corresponding value.   
+    """
     def __init__(self, name, dtype, shape=[], default=None, replace=None):
         self._name = name
         self.dtype = dtype
@@ -14,40 +24,75 @@ class Feature(object):
 
     @staticmethod
     def int64_feature(value):
-        """Wrapper for inserting int64 features into Example proto."""
+        """Static method for converting int64 features into Feature proto.
+        
+        Args:
+          value: Value to be serialized. 
+        Returns:
+          Serialized Feature proto with int64 type.
+        """
         if not isinstance(value, list):
             value = [value]
         return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
     @staticmethod
     def float_feature(value):
-        """Wrapper for inserting float features into Example proto."""
+        """Static method for converting float features into Feature proto.
+        
+        Args:
+          value: Value to be serialized. 
+        Returns:
+          Serialized Feature proto with float type.
+        """
         if not isinstance(value, list):
             value = [value]
         return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
     @staticmethod
     def bytes_feature(value):
-        """Wrapper for inserting bytes features into Example proto."""
+        """Static method for converting bytes features into Feature proto.
+        
+        Args:
+          value: Value to be serialized. 
+        Returns:
+          Serialized Feature proto with bytes type.
+        """
         if isinstance(value, str):
             value = str.encode(value)
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
     @staticmethod
     def _encode(value):
+        """Abstract encode method."""
         raise NotImplementedError
 
     def __call__(self, value=None):
+        """Output a tuple of feature name and serialized Feature proto.
+        
+        Returns:
+          a tuple of feature name and serialized Feature proto.
+        """
         if value is None:
             value = self.default
         return self.name, self._encode(value)
 
     @property
+    # TODO change pars_type to parsing_type
     def parse_type(self):
+        """Generate parsing type for proto example deserialization.
+        
+        Returns:
+          Parsing type for proto example deserialization.
+        """
         return tf.FixedLenFeature(self.shape, self.dtype, self.default)
 
     @property
     def name(self):
+        """Return feature name.
+        
+        Returns:
+          Feature name applied with replacement pattern.
+        """
         name_str = self._name
         if isinstance(self.replace, dict):
             for k, v in self.replace.items():
@@ -56,6 +101,15 @@ class Feature(object):
 
 
 class Int64Feature(Feature):
+    """Class for int64 Feature
+    
+    Args:
+      name: feature name.
+      shape: data shape of input.
+      default: default value for serialization if value is None or value to be used if an example is missing 
+      in deserialization.
+      replace: a dictionary in which a string key is replaced by the corresponding value.   
+    """
     def __init__(self, name="Int64Feature", shape=[], default=-1, replace=None):
         super(Int64Feature, self).__init__(name=name, dtype=tf.int64, shape=shape, default=default, replace=replace)
 
@@ -65,6 +119,15 @@ class Int64Feature(Feature):
 
 
 class Float32Feature(Feature):
+    """Class for float32 Feature
+    
+    Args:
+      name: feature name.
+      shape: data shape of input.
+      default: default value for serialization if value is None or value to be used if an example is missing 
+      in deserialization.
+      replace: a dictionary in which a string key is replaced by the corresponding value.   
+    """
     def __init__(self, name="Float32Feature", shape=[], default=-1, replace=None):
         super(Float32Feature, self).__init__(name=name, dtype=tf.float32, shape=shape, default=default, replace=replace)
 
@@ -74,6 +137,15 @@ class Float32Feature(Feature):
 
 
 class BytesFeature(Feature):
+    """Class for bytes Feature
+    
+    Args:
+      name: feature name.
+      shape: data shape of input.
+      default: default value for serialization if value is None or value to be used if an example is missing 
+      in deserialization.
+      replace: a dictionary in which a string key is replaced by the corresponding value.   
+    """
     def __init__(self, name="BytesFeature", shape=[], default="", replace=None):
         super(BytesFeature, self).__init__(name=name, dtype=tf.string, shape=shape, default=default, replace=replace)
 
@@ -83,6 +155,13 @@ class BytesFeature(Feature):
 
 
 class SparseFeature(Feature):
+    """Base class for Sparse Feature
+    
+    Args:
+      name: feature name.
+      dtype: data type of input.
+      replace: a dictionary in which a string key is replaced by the corresponding value.   
+    """
     def __init__(self, name, dtype, replace=None):
         super(SparseFeature, self).__init__(name=name, dtype=dtype, replace=replace)
 
