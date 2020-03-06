@@ -41,7 +41,8 @@ class FeaturesTest(unittest.TestCase):
         ]
         example = TestFeatures.to_pb_example(feature_tuples)
         # decode
-        parsed = tf.io.parse_single_example(serialized=example.SerializeToString(), features=TestFeatures.feature_map())
+        parse_func = TestFeatures.parse_function()
+        parsed = parse_func(serialized=example.SerializeToString(), name="TestFeature")
         values = _run_tf_session(parsed)
         self.assertEqual(values[TestFeatures.feature_a.name], self.value_a)
         self.assertEqual(values[TestFeatures.feature_b.name], self.value_b)
@@ -100,11 +101,8 @@ class SequenceFeaturesTest(unittest.TestCase):
         ]
         seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples)
         # decode
-        context_parsed, sequence_parsed = tf.io.parse_single_sequence_example(
-            serialized=seq_ex.SerializeToString(),
-            context_features=TestSequenceFeatures.context_feature_map(),
-            sequence_features=TestSequenceFeatures.feature_list_map()
-        )
+        parsed_func = TestSequenceFeatures.parser_function()
+        context_parsed, sequence_parsed = parsed_func(serialized=seq_ex.SerializeToString())
         context, sequence = _run_tf_session([context_parsed, sequence_parsed])
         self.assertEqual(context[TestSequenceFeatures.length.name], len(self.tokens))
         self.assertEqual(sequence[TestSequenceFeatures.tokens.name].tolist(), self.tokens)

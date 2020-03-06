@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from functools import partial
 
 import six
 import tensorflow as tf
@@ -301,14 +302,18 @@ class FeaturesMeta(type):
 
 class Features(six.with_metaclass(FeaturesMeta)):
     @classmethod
+    def __getitem__(cls, name):
+        return cls.__dict__[name]
+
+    @classmethod
     def all_feature_names(cls):
-        return list(cls.__dict__.get(cls.ORDER))
+        return list(cls.__getitem__(cls.ORDER))
 
     @classmethod
     def feature_map(cls):
         d = OrderedDict()
-        for name in cls.__dict__.get(cls.ORDER):
-            feature = cls.__dict__.get(name)
+        for name in cls.__getitem__(cls.ORDER):
+            feature = cls.__getitem__(name)
             d[feature.name] = feature.parse_type
         return d
 
@@ -320,7 +325,7 @@ class Features(six.with_metaclass(FeaturesMeta)):
         if isinstance(fea, Feature):
             tf_feature = fea(value)
         elif isinstance(fea, str):
-            feaObj = cls.__dict__.get(fea)
+            feaObj = cls.__getitem__(fea)
             tf_feature = feaObj(value)
         else:
             raise TypeError("feature")
@@ -335,29 +340,38 @@ class Features(six.with_metaclass(FeaturesMeta)):
         features = cls.to_pb_features(feature_tuples)
         return tf.train.Example(features=features)
 
+    @classmethod
+    def parse_function(cls):
+        parser = partial(tf.io.parse_single_example, features=cls.feature_map())
+        return parser
+
 
 class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
     @classmethod
+    def __getitem__(cls, name):
+        return cls.__dict__[name]
+
+    @classmethod
     def all_feature_names(cls):
-        return list(cls.__dict__.get(cls.ORDER))
+        return list(cls.__getitem__(cls.ORDER))
 
     @classmethod
     def context_feature_names(cls):
-        context_features = [name for name in cls.__dict__.get(cls.ORDER)
-                            if isinstance(cls.__dict__.get(name), Feature)]
+        context_features = [name for name in cls.__getitem__(cls.ORDER)
+                            if isinstance(cls.__getitem__(name), Feature)]
         return context_features
 
     @classmethod
     def feature_list_names(cls):
-        feature_lists = [name for name in cls.__dict__.get(cls.ORDER)
-                         if isinstance(cls.__dict__.get(name), FeatureList)]
+        feature_lists = [name for name in cls.__getitem__(cls.ORDER)
+                         if isinstance(cls.__getitem__(name), FeatureList)]
         return feature_lists
 
     @classmethod
     def context_feature_map(cls):
         d = OrderedDict()
         for name in cls.context_feature_names():
-            feature = cls.__dict__.get(name)
+            feature = cls.__getitem__(name)
             d[feature.name] = feature.parse_type
         return d
 
@@ -365,7 +379,7 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
     def feature_list_map(cls):
         d = OrderedDict()
         for name in cls.feature_list_names():
-            feature = cls.__dict__.get(name)
+            feature = cls.__getitem__(name)
             d[feature.name] = feature.parse_type
         return d
 
@@ -383,7 +397,7 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
         context = list()
         feature_lists = list()
         for name, value in feature_tuples:
-            if isinstance(cls.__dict__.get(name), Feature):
+            if isinstance(cls.__getitem__(name), Feature):
                 context.append((name, value))
             else:
                 feature_lists.append((name, value))
@@ -392,3 +406,10 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
         if feature_lists:
             kwargs["feature_lists"] = cls.to_pb_feature_lists(feature_lists)
         return tf.train.SequenceExample(**kwargs)
+
+    @classmethod
+    def parser_function(cls):
+        parser = partial(tf.io.parse_single_sequence_example,
+                         context_features=cls.context_feature_map(),
+                         sequence_features=cls.feature_list_map())
+        return parser
