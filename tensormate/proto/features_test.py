@@ -48,6 +48,10 @@ class FeaturesTest(unittest.TestCase):
         self.assertEqual(values[TestFeatures.feature_b.name], self.value_b)
         self.assertEqual(values[TestFeatures.feature_c.name], self.value_c)
         self.assertEqual(values[TestFeatures.feature_sparse.name].values.tolist(), self.value_sparse)
+        self.assertEqual(TestFeatures["feature_a"], TestFeatures.feature_a)
+        self.assertEqual(TestFeatures.all_feature_names(),
+                         [TestFeatures.feature_a.name, TestFeatures.feature_b.name,
+                          TestFeatures.feature_c.name, TestFeatures.feature_sparse.name])
 
     def test_example_use_old_way(self):
         # encode
@@ -110,6 +114,20 @@ class SequenceFeaturesTest(unittest.TestCase):
         self.assertEqual(sequence[TestSequenceFeatures.bytes.name].tolist(), self.bytes)
         np.testing.assert_almost_equal(sequence[TestSequenceFeatures.floats.name].tolist(), self.floats,
                                        decimal=7, verbose=True)
+        self.assertEqual(TestSequenceFeatures.numeric_scaler_feature_names(),
+                          [TestSequenceFeatures.length.name])
+        self.assertEqual(TestSequenceFeatures.numeric_scaler_features(), [TestSequenceFeatures.length])
+        self.assertEqual(TestSequenceFeatures.numeric_sequence_feature_names(),
+                          [TestSequenceFeatures.tokens.name, TestSequenceFeatures.labels.name,
+                           TestSequenceFeatures.floats.name])
+        self.assertEqual(TestSequenceFeatures.numeric_sequence_features(),
+                          [TestSequenceFeatures.tokens, TestSequenceFeatures.labels, TestSequenceFeatures.floats])
+        self.assertEqual(TestSequenceFeatures.string_scaler_feature_names(),
+                          [])
+        self.assertEqual(TestSequenceFeatures.string_sequence_features(),
+                          [TestSequenceFeatures.bytes])
+        self.assertEqual(TestSequenceFeatures.string_sequence_feature_names(),
+                          [TestSequenceFeatures.bytes.name])
 
     def test_sequence_example_use_old_way(self):
         # encode

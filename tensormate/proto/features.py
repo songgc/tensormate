@@ -299,15 +299,57 @@ class FeaturesMeta(type):
     def __prepare__(mcs, name, bases):
         return OrderedDict()
 
-
-class Features(six.with_metaclass(FeaturesMeta)):
-    @classmethod
     def __getitem__(cls, name):
         return cls.__dict__[name]
 
-    @classmethod
     def all_feature_names(cls):
-        return list(cls.__getitem__(cls.ORDER))
+        return [cls.__getitem__(key).name for key in cls.__getitem__(cls.ORDER)]
+
+    def _get_features(cls, dtype, is_sequence, mode):
+        """
+
+        :param dtype: "numeric' or "string"
+        :param is_sequence: bool
+        :param mode: "cls" or "name"
+        :return: list of features per request
+        """
+        all_features = cls.all_feature_names()
+        outputs = []
+        dtype_set = (tf.dtypes.string,) if dtype == "string" else (tf.int64, tf.float32)
+        base_class = FeatureList if is_sequence else Feature
+        for name in all_features:
+            feat = cls.__getitem__(name)
+            if feat.dtype in dtype_set and isinstance(feat, base_class):
+                element = feat if mode == "cls" else feat.name
+                outputs.append(element)
+        return outputs
+
+    def numeric_scaler_features(cls):
+        return cls._get_features("numeric", False, "cls")
+
+    def numeric_scaler_feature_names(cls):
+        return cls._get_features("numeric", False, "name")
+
+    def numeric_sequence_features(cls):
+        return cls._get_features("numeric", True, "cls")
+
+    def numeric_sequence_feature_names(cls):
+        return cls._get_features("numeric", True, "name")
+
+    def string_scaler_features(cls):
+        return cls._get_features("string", False, "cls")
+
+    def string_scaler_feature_names(cls):
+        return cls._get_features("string", False, "name")
+
+    def string_sequence_features(cls):
+        return cls._get_features("string", True, "cls")
+
+    def string_sequence_feature_names(cls):
+        return cls._get_features("string", True, "name")
+
+
+class Features(six.with_metaclass(FeaturesMeta)):
 
     @classmethod
     def feature_map(cls):
@@ -347,13 +389,6 @@ class Features(six.with_metaclass(FeaturesMeta)):
 
 
 class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
-    @classmethod
-    def __getitem__(cls, name):
-        return cls.__dict__[name]
-
-    @classmethod
-    def all_feature_names(cls):
-        return list(cls.__getitem__(cls.ORDER))
 
     @classmethod
     def context_feature_names(cls):
