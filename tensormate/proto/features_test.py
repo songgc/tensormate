@@ -52,6 +52,8 @@ class FeaturesTest(unittest.TestCase):
         self.assertEqual(TestFeatures.all_feature_names(),
                          [TestFeatures.feature_a.name, TestFeatures.feature_b.name,
                           TestFeatures.feature_c.name, TestFeatures.feature_sparse.name])
+        print(TestFeatures.feature_a)
+        print(TestFeatures)
 
     def test_example_use_old_way(self):
         # encode
@@ -105,8 +107,8 @@ class SequenceFeaturesTest(unittest.TestCase):
         ]
         seq_ex = TestSequenceFeatures.to_pb_sequence_example(feature_tuples=feature_tuples)
         # decode
-        parsed_func = TestSequenceFeatures.parser_function()
-        context_parsed, sequence_parsed = parsed_func(serialized=seq_ex.SerializeToString())
+        parsed_func = TestSequenceFeatures.parser_function(totensor=True)
+        context_parsed, sequence_parsed, _ = parsed_func(serialized=seq_ex.SerializeToString())
         context, sequence = _run_tf_session([context_parsed, sequence_parsed])
         self.assertEqual(context[TestSequenceFeatures.length.name], len(self.tokens))
         self.assertEqual(sequence[TestSequenceFeatures.tokens.name].tolist(), self.tokens)
@@ -114,20 +116,22 @@ class SequenceFeaturesTest(unittest.TestCase):
         self.assertEqual(sequence[TestSequenceFeatures.bytes.name].tolist(), self.bytes)
         np.testing.assert_almost_equal(sequence[TestSequenceFeatures.floats.name].tolist(), self.floats,
                                        decimal=7, verbose=True)
-        self.assertEqual(TestSequenceFeatures.numeric_scaler_feature_names(),
-                          [TestSequenceFeatures.length.name])
-        self.assertEqual(TestSequenceFeatures.numeric_scaler_features(), [TestSequenceFeatures.length])
-        self.assertEqual(TestSequenceFeatures.numeric_sequence_feature_names(),
-                          [TestSequenceFeatures.tokens.name, TestSequenceFeatures.labels.name,
-                           TestSequenceFeatures.floats.name])
-        self.assertEqual(TestSequenceFeatures.numeric_sequence_features(),
-                          [TestSequenceFeatures.tokens, TestSequenceFeatures.labels, TestSequenceFeatures.floats])
-        self.assertEqual(TestSequenceFeatures.string_scaler_feature_names(),
-                          [])
-        self.assertEqual(TestSequenceFeatures.string_sequence_features(),
-                          [TestSequenceFeatures.bytes])
-        self.assertEqual(TestSequenceFeatures.string_sequence_feature_names(),
-                          [TestSequenceFeatures.bytes.name])
+        self.assertEqual(TestSequenceFeatures.numeric_feature_names(),
+                         [TestSequenceFeatures.length.name])
+        self.assertEqual(TestSequenceFeatures.numeric_feature_members(), [TestSequenceFeatures.length])
+        self.assertEqual(TestSequenceFeatures.numeric_featurelist_names(),
+                         [TestSequenceFeatures.tokens.name, TestSequenceFeatures.labels.name,
+                          TestSequenceFeatures.floats.name])
+        self.assertEqual(TestSequenceFeatures.numeric_featurelist_members(),
+                         [TestSequenceFeatures.tokens, TestSequenceFeatures.labels, TestSequenceFeatures.floats])
+        self.assertEqual(TestSequenceFeatures.string_feature_names(),
+                         [])
+        self.assertEqual(TestSequenceFeatures.string_featurelist_members(),
+                         [TestSequenceFeatures.bytes])
+        self.assertEqual(TestSequenceFeatures.string_featurelist_names(),
+                         [TestSequenceFeatures.bytes.name])
+        print(TestSequenceFeatures.bytes)
+        print(TestSequenceFeatures)
 
     def test_sequence_example_use_old_way(self):
         # encode

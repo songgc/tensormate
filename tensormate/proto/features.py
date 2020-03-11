@@ -16,7 +16,7 @@ class Feature(object):
       in deserialization.
       replace: a dictionary in which a string key is replaced by the corresponding value.   
     """
-    def __init__(self, name, dtype, shape=[], default=None, replace=None):
+    def __init__(self, name, dtype, shape=(), default=None, replace=None):
         self._name = name
         self.dtype = dtype
         self.shape = shape
@@ -77,9 +77,8 @@ class Feature(object):
             value = self.default
         return self.name, self._encode(value)
 
-    @property
     # TODO change pars_type to parsing_type
-    def parse_type(self):
+    def parsing_type(self):
         """Generate parsing type for proto example deserialization.
         
         Returns:
@@ -100,6 +99,11 @@ class Feature(object):
                 name_str = name_str.replace(k, v)
         return name_str
 
+    def __str__(self):
+        string = "{}(name={}, dtype={}, shape={}, default={}, replace={})"\
+            .format(self.__class__.__name__, self.name, self.dtype, self.shape, self.default, self.replace)
+        return string
+
 
 class Int64Feature(Feature):
     """Class for int64 Feature
@@ -111,7 +115,7 @@ class Int64Feature(Feature):
       in deserialization.
       replace: a dictionary in which a string key is replaced by the corresponding value.   
     """
-    def __init__(self, name="Int64Feature", shape=[], default=-1, replace=None):
+    def __init__(self, name="Int64Feature", shape=(), default=-1, replace=None):
         super(Int64Feature, self).__init__(name=name, dtype=tf.int64, shape=shape, default=default, replace=replace)
 
     @staticmethod
@@ -129,7 +133,7 @@ class Float32Feature(Feature):
       in deserialization.
       replace: a dictionary in which a string key is replaced by the corresponding value.   
     """
-    def __init__(self, name="Float32Feature", shape=[], default=-1, replace=None):
+    def __init__(self, name="Float32Feature", shape=(), default=-1, replace=None):
         super(Float32Feature, self).__init__(name=name, dtype=tf.float32, shape=shape, default=default, replace=replace)
 
     @staticmethod
@@ -147,7 +151,7 @@ class BytesFeature(Feature):
       in deserialization.
       replace: a dictionary in which a string key is replaced by the corresponding value.   
     """
-    def __init__(self, name="BytesFeature", shape=[], default="", replace=None):
+    def __init__(self, name="BytesFeature", shape=(), default="", replace=None):
         super(BytesFeature, self).__init__(name=name, dtype=tf.string, shape=shape, default=default, replace=replace)
 
     @staticmethod
@@ -166,8 +170,7 @@ class SparseFeature(Feature):
     def __init__(self, name, dtype, replace=None):
         super(SparseFeature, self).__init__(name=name, dtype=dtype, replace=replace)
 
-    @property
-    def parse_type(self):
+    def parsing_type(self):
         return tf.io.VarLenFeature(self.dtype)
 
 
@@ -199,7 +202,7 @@ class SparseBytesFeature(SparseFeature):
 
 
 class FeatureList(object):
-    def __init__(self, name, dtype, shape=[], allow_missing=True, replace=None):
+    def __init__(self, name, dtype, shape=(), allow_missing=True, replace=None):
         self._name = name
         self.dtype = dtype
         self.shape = shape
@@ -231,9 +234,17 @@ class FeatureList(object):
         #     value = self.default
         return self.name, self._encode(value)
 
-    @property
-    def parse_type(self):
-        return tf.io.FixedLenSequenceFeature(self.shape, self.dtype, self.allow_missing)
+    def parsing_type(self, target="ragged"):
+        """
+
+        :param target: "ragged" or "fixed_len"
+        :return:
+        """
+        if target == "ragged":
+            out = tf.io.RaggedFeature(self.dtype)
+        else:
+            out = tf.io.FixedLenSequenceFeature(self.shape, self.dtype, self.allow_missing)
+        return out
 
     @property
     def name(self):
@@ -243,9 +254,15 @@ class FeatureList(object):
                 name_str = name_str.replace(k, v)
         return name_str
 
+    def __str__(self):
+        string = "{}(name={}, dtype={}, shape={}, allow_missing={}, replace={})"\
+            .format(self.__class__.__name__,
+                    self.name, self.dtype, self.shape, self.allow_missing, self.replace)
+        return string
+
 
 class Int64FeatureList(FeatureList):
-    def __init__(self, name="Int64FeatureList", shape=[], allow_missing=True, replace=None):
+    def __init__(self, name="Int64FeatureList", shape=(), allow_missing=True, replace=None):
         super(Int64FeatureList, self).__init__(name=name, dtype=tf.int64, shape=shape, allow_missing=allow_missing,
                                                replace=replace)
 
@@ -255,7 +272,7 @@ class Int64FeatureList(FeatureList):
 
 
 class Float32FeatureList(FeatureList):
-    def __init__(self, name="Float32FeatureList", shape=[], allow_missing=True, replace=None):
+    def __init__(self, name="Float32FeatureList", shape=(), allow_missing=True, replace=None):
         super(Float32FeatureList, self).__init__(name=name, dtype=tf.float32, shape=shape, allow_missing=allow_missing,
                                                  replace=replace)
 
@@ -265,7 +282,7 @@ class Float32FeatureList(FeatureList):
 
 
 class BytesFeatureList(FeatureList):
-    def __init__(self, name="BytesFeatureList", shape=[], allow_missing=True, replace=None):
+    def __init__(self, name="BytesFeatureList", shape=(), allow_missing=True, replace=None):
         super(BytesFeatureList, self).__init__(name=name, dtype=tf.string, shape=shape, allow_missing=allow_missing,
                                                replace=replace)
 
@@ -302,20 +319,46 @@ class FeaturesMeta(type):
     def __getitem__(cls, name):
         return cls.__dict__[name]
 
-    def all_feature_names(cls):
-        return [cls.__getitem__(key).name for key in cls.__getitem__(cls.ORDER)]
+    def __str__(cls):
+        name = "{}".format(cls.__mro__[0].__name__)
+        strs = list()
+        strs.append(name + ":")
+        feat_names = cls.all_feature_names(with_replacement=False)
+        for fname in feat_names:
+            strs.append("  " + str(cls[fname]))
+        string = "\n".join(strs)
+        return string
+
+    def all_member_names(cls, with_replacement=True):
+        if with_replacement:
+            output = [cls.__getitem__(key).name for key in cls.__getitem__(cls.ORDER)]
+        else:
+            output = cls[cls.ORDER]
+        return output
+
+    # TODO remove
+    def all_feature_names(cls, with_replacement=True):
+        return cls.all_member_names(with_replacement)
 
     def _get_features(cls, dtype, is_sequence, mode):
         """
 
-        :param dtype: "numeric' or "string"
+        :param dtype: "numeric' or "string", "all"
         :param is_sequence: bool
         :param mode: "cls" or "name"
         :return: list of features per request
         """
         all_features = cls.all_feature_names()
         outputs = []
-        dtype_set = (tf.dtypes.string,) if dtype == "string" else (tf.int64, tf.float32)
+        if dtype == "string":
+            dtype_set = (tf.dtypes.string,)
+        elif dtype == "numeric":
+            dtype_set = (tf.dtypes.int64, tf.dtypes.float32)
+        elif dtype == "all":
+            dtype_set = (tf.dtypes.int64, tf.dtypes.float32, tf.dtypes.string)
+        else:
+            raise RuntimeError("Unknown date type")
+
         base_class = FeatureList if is_sequence else Feature
         for name in all_features:
             feat = cls.__getitem__(name)
@@ -324,28 +367,40 @@ class FeaturesMeta(type):
                 outputs.append(element)
         return outputs
 
-    def numeric_scaler_features(cls):
+    def feature_members(cls):
+        return cls._get_features("all", False, "cls")
+
+    def feature_names(cls):
+        return cls._get_features("all", False, "name")
+
+    def featurelist_members(cls):
+        return cls._get_features("all", True, "cls")
+
+    def featurelist_names(cls):
+        return  cls._get_features("all", True, "name")
+
+    def numeric_feature_members(cls):
         return cls._get_features("numeric", False, "cls")
 
-    def numeric_scaler_feature_names(cls):
+    def numeric_feature_names(cls):
         return cls._get_features("numeric", False, "name")
 
-    def numeric_sequence_features(cls):
+    def numeric_featurelist_members(cls):
         return cls._get_features("numeric", True, "cls")
 
-    def numeric_sequence_feature_names(cls):
+    def numeric_featurelist_names(cls):
         return cls._get_features("numeric", True, "name")
 
-    def string_scaler_features(cls):
+    def string_feature_members(cls):
         return cls._get_features("string", False, "cls")
 
-    def string_scaler_feature_names(cls):
+    def string_feature_names(cls):
         return cls._get_features("string", False, "name")
 
-    def string_sequence_features(cls):
+    def string_featurelist_members(cls):
         return cls._get_features("string", True, "cls")
 
-    def string_sequence_feature_names(cls):
+    def string_featurelist_names(cls):
         return cls._get_features("string", True, "name")
 
 
@@ -356,7 +411,7 @@ class Features(six.with_metaclass(FeaturesMeta)):
         d = OrderedDict()
         for name in cls.__getitem__(cls.ORDER):
             feature = cls.__getitem__(name)
-            d[feature.name] = feature.parse_type
+            d[feature.name] = feature.parsing_type()
         return d
 
     @classmethod
@@ -384,7 +439,7 @@ class Features(six.with_metaclass(FeaturesMeta)):
 
     @classmethod
     def parse_function(cls):
-        parser = partial(tf.io.parse_single_example, features=cls.feature_map())
+        parser = partial(tf.io.parse_example, features=cls.feature_map())
         return parser
 
 
@@ -392,30 +447,26 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
 
     @classmethod
     def context_feature_names(cls):
-        context_features = [name for name in cls.__getitem__(cls.ORDER)
-                            if isinstance(cls.__getitem__(name), Feature)]
-        return context_features
+        return cls.feature_names()
 
     @classmethod
     def feature_list_names(cls):
-        feature_lists = [name for name in cls.__getitem__(cls.ORDER)
-                         if isinstance(cls.__getitem__(name), FeatureList)]
-        return feature_lists
+        return cls.featurelist_names()
 
     @classmethod
     def context_feature_map(cls):
         d = OrderedDict()
         for name in cls.context_feature_names():
             feature = cls.__getitem__(name)
-            d[feature.name] = feature.parse_type
+            d[feature.name] = feature.parsing_type()
         return d
 
     @classmethod
-    def feature_list_map(cls):
+    def feature_list_map(cls, target="ragged"):
         d = OrderedDict()
         for name in cls.feature_list_names():
             feature = cls.__getitem__(name)
-            d[feature.name] = feature.parse_type
+            d[feature.name] = feature.parsing_type(target)
         return d
 
     @classmethod
@@ -443,8 +494,19 @@ class SequenceFeatures(six.with_metaclass(FeaturesMeta)):
         return tf.train.SequenceExample(**kwargs)
 
     @classmethod
-    def parser_function(cls):
-        parser = partial(tf.io.parse_single_sequence_example,
-                         context_features=cls.context_feature_map(),
-                         sequence_features=cls.feature_list_map())
+    def parser_function(cls, target="ragged", totensor=True):
+
+        def parser(serialized):
+            context, rseq, sparse = tf.io.parse_sequence_example(serialized=serialized,
+                                                            context_features=cls.context_feature_map(),
+                                                            sequence_features=cls.feature_list_map(target))
+
+            if target != "ragged" or not totensor:
+                return context, rseq, sparse
+
+            seq = {}
+            for k, v in rseq.items():
+                seq[k] = v.merge_dims(0, -1)
+            return context, seq, sparse
+
         return parser
